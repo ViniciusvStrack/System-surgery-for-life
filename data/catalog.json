@@ -1,0 +1,32 @@
+[
+  {
+    "id": "CAM-001",
+    "name": "Camiseta Básica Premium",
+    "description": "Camiseta 100% algodão, confortável e resistente.",
+    "category": "Camisetas",
+    "price": 59.9,
+    "stock": 20,
+    "keywords": ["camisa", "camiseta", "algodão", "básica"],
+    "variants": ["P", "M", "G", "GG"]
+  },
+  {
+    "id": "CAL-001",
+    "name": "Calça Jeans Slim",
+    "description": "Jeans azul com elastano e corte slim.",
+    "category": "Calças",
+    "price": 149.9,
+    "stock": 12,
+    "keywords": ["calça", "jeans", "slim"],
+    "variants": ["38", "40", "42", "44"]
+  },
+  {
+    "id": "TEN-001",
+    "name": "Tênis Casual Urbano",
+    "description": "Tênis leve para uso diário.",
+    "category": "Calçados",
+    "price": 199.9,
+    "stock": 8,
+    "keywords": ["tênis", "sapato", "casual"],
+    "variants": ["37", "38", "39", "40", "41", "42"]
+  }
+]

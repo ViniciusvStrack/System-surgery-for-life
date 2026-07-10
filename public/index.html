@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#075e54">
+  <title>Simulador — Atendimento da loja</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="phone" aria-label="Simulador de conversa">
+    <header class="chat-header">
+      <button class="icon-button back" aria-label="Voltar">‹</button>
+      <div class="avatar" aria-hidden="true">ML</div>
+      <div class="contact">
+        <strong>Minha Loja</strong>
+        <span><i></i> online</span>
+      </div>
+      <button id="reset" class="icon-button reset" title="Reiniciar conversa" aria-label="Reiniciar conversa">↻</button>
+    </header>
+
+    <section id="messages" class="messages" aria-live="polite" aria-label="Mensagens">
+      <div class="day"><span>HOJE</span></div>
+      <div class="encryption">🔒 As mensagens desta simulação ficam apenas no seu computador.</div>
+    </section>
+
+    <nav class="quick-actions" aria-label="Respostas rápidas">
+      <button data-message="menu">Menu</button>
+      <button data-message="catálogo">Catálogo</button>
+      <button data-message="scrub">Ver scrubs</button>
+      <button data-message="carrinho">Carrinho</button>
+      <button data-message="finalizar">Finalizar</button>
+      <button data-message="atendente">Atendente</button>
+    </nav>
+
+    <form id="composer" class="composer">
+      <div class="input-wrap">
+        <span aria-hidden="true">☺</span>
+        <input id="message" maxlength="1000" autocomplete="off" placeholder="Mensagem" aria-label="Digite sua mensagem">
+      </div>
+      <button id="send" class="send" type="submit" aria-label="Enviar mensagem">➤</button>
+    </form>
+  </main>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

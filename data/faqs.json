@@ -1,0 +1,37 @@
+[
+  {
+    "question": "Qual é o horário de atendimento?",
+    "keywords": ["horário", "horario", "horas", "aberto", "abrem", "abre", "fecha", "fecham", "funcionamento", "atendimento hoje"],
+    "answer": "Nosso atendimento funciona de segunda a sexta, das 9h às 18h, e aos sábados, das 9h às 13h. Para falar com a equipe, escreva *atendente*."
+  },
+  {
+    "question": "Vocês fazem troca?",
+    "keywords": ["troca", "trocar", "devolução", "devolver"],
+    "answer": "Sim. Produtos sem sinais de uso podem ser trocados conforme nossa política. Envie o número do pedido e escreva *atendente* para receber ajuda."
+  },
+  {
+    "question": "Quais são as formas de pagamento?",
+    "keywords": ["pagamento", "pagar", "pix", "cartão", "cartao"],
+    "answer": "O bot não coleta pagamentos. Após confirmar o pedido, nossa equipe combina a forma de pagamento diretamente com você pelo WhatsApp."
+  },
+  {
+    "question": "Vocês entregam?",
+    "keywords": ["entrega", "frete", "enviar", "envio"],
+    "answer": "Sim. Informe seu endereço durante o fechamento do pedido. A taxa configurada será exibida antes da confirmação."
+  },
+  {
+    "question": "Onde fica a loja?",
+    "keywords": ["endereço da loja", "endereco da loja", "localização", "localizacao", "onde fica", "onde vocês ficam", "onde voces ficam"],
+    "answer": "O endereço da loja ainda precisa ser configurado. Escreva *atendente* para pedir a localização correta à equipe."
+  },
+  {
+    "question": "Qual é o prazo de entrega?",
+    "keywords": ["prazo", "quanto tempo", "quando chega", "demora", "dias para entregar"],
+    "answer": "O prazo depende do endereço e da disponibilidade do produto. Monte o pedido e nossa equipe confirmará o prazo pelo WhatsApp antes do pagamento."
+  },
+  {
+    "question": "Tem produto disponível?",
+    "keywords": ["disponível", "disponivel", "estoque", "tem tamanho", "tem produto"],
+    "answer": "O catálogo mostra apenas itens com estoque. Digite o nome do produto ou *catálogo* para consultar as opções atuais."
+  }
+]
