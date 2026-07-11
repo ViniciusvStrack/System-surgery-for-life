@@ -15,7 +15,7 @@ npm start
 
 Abra `http://localhost:3002` no navegador para conversar em um simulador visual semelhante ao WhatsApp. O botão ↻ reinicia a conversa. Abra `http://localhost:3002/health` para verificar o servidor.
 
-Painel integrado do estoque: `http://localhost:3002/estoque`. Consulte `docs/implantacao-producao.md` para migrar dados locais e `docs/integracao-whatsapp.md` para conectar o número oficial.
+Painel integrado do estoque: `http://localhost:3002/estoque`. A interface profissional está separada em `public/estoque/index.html`, `styles.css`, `api.js` e `app.js`. Consulte `docs/implantacao-producao.md` e `docs/integracao-whatsapp.md` para produção.
 
 Em produção, defina `ENABLE_SIMULATOR=false` no `.env` se não quiser deixar o simulador público.
 

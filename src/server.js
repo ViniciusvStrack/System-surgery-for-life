@@ -22,6 +22,11 @@ const publicFiles = {
   "/": ["index.html", "text/html; charset=utf-8"],
   "/styles.css": ["styles.css", "text/css; charset=utf-8"],
   "/app.js": ["app.js", "text/javascript; charset=utf-8"],
+  "/estoque": ["estoque/index.html", "text/html; charset=utf-8"],
+  "/estoque/": ["estoque/index.html", "text/html; charset=utf-8"],
+  "/estoque/styles.css": ["estoque/styles.css", "text/css; charset=utf-8"],
+  "/estoque/api.js": ["estoque/api.js", "text/javascript; charset=utf-8"],
+  "/estoque/app.js": ["estoque/app.js", "text/javascript; charset=utf-8"],
 };
 
 function sendJson(response, status, value) {
@@ -54,10 +59,6 @@ const server = http.createServer(async (request, response) => {
     response.writeHead(204, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type, X-Admin-Token", "Access-Control-Allow-Methods": "GET, PUT, OPTIONS" });
     return response.end();
   }
-  if (request.method === "GET" && url.pathname === "/estoque") {
-    response.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
-    return response.end(fs.readFileSync(path.join(config.root, "sistema_estoque_surgery_for_life_V2_IMPECAVEL (1).html")));
-  }
   if (url.pathname === "/api/inventory/snapshot") {
     if (!isAdmin(request)) return sendJson(response, 401, { error: "Token administrativo inválido" });
     if (request.method === "GET") return sendJson(response, 200, inventory.snapshot());
@@ -71,7 +72,7 @@ const server = http.createServer(async (request, response) => {
     }
   }
   if (request.method === "GET" && url.pathname === "/api/catalog") return sendJson(response, 200, catalog.available());
-  if (request.method === "GET" && publicFiles[url.pathname] && config.simulatorEnabled) {
+  if (request.method === "GET" && publicFiles[url.pathname] && (config.simulatorEnabled || url.pathname.startsWith("/estoque"))) {
     const [file, type] = publicFiles[url.pathname];
     response.writeHead(200, { "Content-Type": type, "Cache-Control": "no-store" });
     return response.end(fs.readFileSync(path.join(config.root, "public", file)));

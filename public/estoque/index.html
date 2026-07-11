@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101b2d">
+  <title>Estoque | Surgery For Life</title>
+  <link rel="stylesheet" href="/estoque/styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="/estoque"><span class="brand-mark">S</span><span><strong>Surgery For Life</strong><small>Gestão de estoque</small></span></a>
+      <nav id="navigation" aria-label="Navegação principal">
+        <button class="nav-item active" data-view="dashboard"><span>⌂</span> Visão geral</button>
+        <button class="nav-item" data-view="products"><span>□</span> Produtos <b id="lowBadge">0</b></button>
+        <button class="nav-item" data-view="movements"><span>⇄</span> Movimentações</button>
+        <button class="nav-item" data-view="history"><span>≡</span> Histórico</button>
+      </nav>
+      <div class="sidebar-footer"><span id="connectionDot"></span><span><strong id="connectionText">Conectando…</strong><small id="revisionText">Estoque central</small></span></div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div><p class="eyebrow">ATELIER • CAMARAGIBE, PE</p><h1 id="pageTitle">Visão geral</h1></div>
+        <div class="top-actions"><button class="button secondary" id="refreshButton">↻ Atualizar</button><button class="button primary" id="newMovement">+ Movimentação</button></div>
+      </header>
+
+      <section class="view active" id="view-dashboard">
+        <div class="metrics">
+          <article class="metric"><span>Produtos cadastrados</span><strong id="metricProducts">0</strong><small>variações por SKU</small></article>
+          <article class="metric"><span>Unidades disponíveis</span><strong id="metricUnits">0</strong><small>saldo físico atual</small></article>
+          <article class="metric danger"><span>Estoque baixo</span><strong id="metricLow">0</strong><small>itens pedindo reposição</small></article>
+          <article class="metric"><span>Capital em estoque</span><strong id="metricValue">R$ 0</strong><small>calculado pelo custo</small></article>
+        </div>
+        <div class="grid-two">
+          <article class="panel"><div class="panel-head"><div><p class="eyebrow">ATENÇÃO</p><h2>Reposição necessária</h2></div><button class="text-button" data-go="products">Ver produtos →</button></div><div id="lowStockList" class="stock-list"></div></article>
+          <article class="panel"><div class="panel-head"><div><p class="eyebrow">ATIVIDADE</p><h2>Movimentações recentes</h2></div></div><div id="recentMovements" class="timeline"></div></article>
+        </div>
+      </section>
+
+      <section class="view" id="view-products">
+        <div class="toolbar"><label class="search">⌕ <input id="productSearch" placeholder="Buscar nome, SKU, cor ou tamanho"></label><button class="button primary" id="newProduct">+ Novo produto</button></div>
+        <article class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>Produto</th><th>SKU</th><th>Cor</th><th>Tamanho</th><th>Saldo</th><th>Mínimo</th><th>Preço</th><th>Status</th><th></th></tr></thead><tbody id="productsTable"></tbody></table></div></article>
+      </section>
+
+      <section class="view" id="view-movements">
+        <div class="metrics compact"><article class="metric"><span>Entradas</span><strong id="metricEntries">0</strong></article><article class="metric"><span>Saídas</span><strong id="metricExits">0</strong></article><article class="metric"><span>Vendas WhatsApp</span><strong id="metricWhatsapp">0</strong></article></div>
+        <article class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>Data</th><th>Tipo</th><th>Produto</th><th>Quantidade</th><th>Saldo</th><th>Responsável / origem</th><th>Observação</th></tr></thead><tbody id="movementsTable"></tbody></table></div></article>
+      </section>
+
+      <section class="view" id="view-history">
+        <article class="panel"><div class="panel-head"><div><p class="eyebrow">AUDITORIA</p><h2>Histórico completo</h2></div><button class="button secondary" id="exportButton">Exportar CSV</button></div><div id="historyTimeline" class="timeline expanded"></div></article>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="productDialog"><form method="dialog" id="productForm"><div class="dialog-head"><div><p class="eyebrow">CADASTRO</p><h2 id="productDialogTitle">Novo produto</h2></div><button value="cancel" class="close" aria-label="Fechar">×</button></div><input type="hidden" name="id"><div class="form-grid"><label class="span-2">Nome<input name="nome" required maxlength="100"></label><label>Cor<input name="cor" required maxlength="60"></label><label>Tamanho<input name="tam" required maxlength="20"></label><label>Coleção<input name="colecao" value="Atelier 2026" maxlength="80"></label><label>SKU<input name="sku" required maxlength="80"></label><label>Saldo<input name="qtd" type="number" min="0" required></label><label>Estoque mínimo<input name="min" type="number" min="0" required></label><label>Custo<input name="custo" type="number" min="0" step="0.01" required></label><label>Preço de venda<input name="preco" type="number" min="0" step="0.01" required></label></div><div class="dialog-actions"><button value="cancel" class="button secondary">Cancelar</button><button type="submit" value="default" class="button primary">Salvar produto</button></div></form></dialog>
+
+  <dialog id="movementDialog"><form method="dialog" id="movementForm"><div class="dialog-head"><div><p class="eyebrow">ESTOQUE</p><h2>Nova movimentação</h2></div><button value="cancel" class="close" aria-label="Fechar">×</button></div><div class="form-grid"><label>Tipo<select name="tipo"><option value="entrada">Entrada</option><option value="saida">Saída</option></select></label><label>Produto<select name="prodId" required></select></label><label>Quantidade<input name="qtd" type="number" min="1" value="1" required></label><label>Origem / cliente<input name="responsavel" maxlength="120" required></label><label class="span-2">Observação<textarea name="obs" rows="3" maxlength="300"></textarea></label></div><div class="dialog-actions"><button value="cancel" class="button secondary">Cancelar</button><button type="submit" value="default" class="button primary">Registrar movimentação</button></div></form></dialog>
+  <div id="toast" role="status"></div>
+  <script type="module" src="/estoque/app.js"></script>
+</body>
+</html>
