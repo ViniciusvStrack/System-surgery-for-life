@@ -8,6 +8,7 @@ import { JsonStore } from "./json-store.js";
 import { InventoryService } from "./inventory.js";
 import { extractMessages, verifySignature, WhatsAppClient } from "./whatsapp.js";
 import { money } from "./utils.js";
+import { AuthService } from "./auth.js";
 
 await loadEnv();
 const config = getConfig();
@@ -17,6 +18,7 @@ const sessions = new JsonStore(path.join(config.root, "runtime/sessions.json"), 
 const orders = new JsonStore(path.join(config.root, "runtime/orders.json"), []);
 const bot = new StoreBot({ catalog, sessions, orders, faqFile: path.join(config.root, "data/faqs.json"), config });
 const whatsapp = new WhatsAppClient(config);
+const auth = new AuthService({ usersFile: path.join(config.root, "runtime/users.json"), sessionsFile: path.join(config.root, "runtime/auth-sessions.json"), resetsFile: path.join(config.root, "runtime/password-resets.json"), auditFile: path.join(config.root, "runtime/audit.json"), encryptionKey: config.authEncryptionKey, adminEmail: config.bootstrapAdminEmail, adminPassword: config.bootstrapAdminPassword, secureCookies: config.appEnv === "production" });
 
 const publicFiles = {
   "/": ["index.html", "text/html; charset=utf-8"],
@@ -25,18 +27,21 @@ const publicFiles = {
   "/estoque": ["estoque/index.html", "text/html; charset=utf-8"],
   "/estoque/": ["estoque/index.html", "text/html; charset=utf-8"],
   "/estoque/styles.css": ["estoque/styles.css", "text/css; charset=utf-8"],
+  "/estoque/auth.css": ["estoque/auth.css", "text/css; charset=utf-8"],
   "/estoque/api.js": ["estoque/api.js", "text/javascript; charset=utf-8"],
   "/estoque/app.js": ["estoque/app.js", "text/javascript; charset=utf-8"],
 };
 
-function sendJson(response, status, value) {
-  response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*" });
+function sendJson(response, status, value, headers = {}) {
+  response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY", ...headers });
   response.end(JSON.stringify(value));
 }
 
 function isAdmin(request) {
   return Boolean(config.adminToken) && request.headers["x-admin-token"] === config.adminToken;
 }
+
+function requestContext(request) { return { ip: request.socket.remoteAddress || "", userAgent: request.headers["user-agent"] || "" }; }
 
 function readBody(request) {
   return new Promise((resolve, reject) => {
@@ -55,17 +60,36 @@ function orderForStore(order) {
 
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
+  if (request.method === "POST" && url.pathname === "/api/auth/login") {
+    try { const result = auth.login(JSON.parse((await readBody(request)).toString("utf8")), requestContext(request)); if (result.requiresTwoFactor) return sendJson(response, 202, result); return sendJson(response, 200, { user: result.user, csrf: result.csrf, requiresTwoFactorSetup: result.requiresTwoFactorSetup }, { "Set-Cookie": auth.cookie(result.token) }); }
+    catch (error) { return sendJson(response, error.status || 400, { error: error.message }); }
+  }
+  if (request.method === "GET" && url.pathname === "/api/auth/me") {
+    const current = auth.sessionFrom(request); return current ? sendJson(response, 200, { user: current.safeUser, csrf: current.session.csrf, requiresTwoFactorSetup: current.user.role === "admin" && !current.user.twoFactor?.enabled }) : sendJson(response, 401, { error: "Autenticação necessária." });
+  }
+  if (request.method === "POST" && url.pathname === "/api/auth/logout") { auth.logout(request); return sendJson(response, 200, { ok: true }, { "Set-Cookie": auth.clearCookie() }); }
+  if (request.method === "POST" && url.pathname === "/api/auth/2fa/setup") { try { return sendJson(response, 200, auth.setupTwoFactor(request)); } catch (error) { return sendJson(response, error.status || 400, { error: error.message }); } }
+  if (request.method === "POST" && url.pathname === "/api/auth/2fa/confirm") { try { const body = JSON.parse((await readBody(request)).toString("utf8")); return sendJson(response, 200, { user: auth.confirmTwoFactor(request, body.code) }); } catch (error) { return sendJson(response, error.status || 400, { error: error.message }); } }
+  if (request.method === "POST" && url.pathname === "/api/auth/forgot-password") { const body = JSON.parse((await readBody(request)).toString("utf8")); const token = auth.requestReset(body.email); return sendJson(response, 200, { message: "Se a conta existir, as instruções serão enviadas.", developmentResetToken: config.appEnv === "development" ? token : undefined }); }
+  if (request.method === "POST" && url.pathname === "/api/auth/reset-password") { try { const body = JSON.parse((await readBody(request)).toString("utf8")); auth.resetPassword(body.token, body.password); return sendJson(response, 200, { ok: true }); } catch (error) { return sendJson(response, 400, { error: error.message }); } }
+  if (url.pathname === "/api/admin/users") {
+    try { const current = auth.authorize(request, ["admin"], request.method !== "GET"); if (request.method === "GET") return sendJson(response, 200, auth.listUsers()); if (request.method === "POST") { const body = JSON.parse((await readBody(request)).toString("utf8")); return sendJson(response, 201, auth.createUser(body, current.safeUser)); } }
+    catch (error) { return sendJson(response, error.status || 400, { error: error.message, code: error.code }); }
+  }
+  if (request.method === "GET" && url.pathname === "/api/admin/audit") { try { auth.authorize(request, ["admin"]); return sendJson(response, 200, auth.listAudit()); } catch (error) { return sendJson(response, error.status || 400, { error: error.message }); } }
   if (request.method === "OPTIONS" && url.pathname.startsWith("/api/inventory")) {
     response.writeHead(204, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type, X-Admin-Token", "Access-Control-Allow-Methods": "GET, PUT, OPTIONS" });
     return response.end();
   }
   if (url.pathname === "/api/inventory/snapshot") {
-    if (!isAdmin(request)) return sendJson(response, 401, { error: "Token administrativo inválido" });
+    let current = null;
+    try { current = auth.authorize(request, request.method === "GET" ? ["admin", "stock", "support"] : ["admin", "stock"], request.method !== "GET"); }
+    catch (error) { if (!isAdmin(request)) return sendJson(response, error.status || 401, { error: error.message, code: error.code }); }
     if (request.method === "GET") return sendJson(response, 200, inventory.snapshot());
     if (request.method === "PUT") {
       try {
         const body = JSON.parse((await readBody(request)).toString("utf8"));
-        return sendJson(response, 200, inventory.replace(body));
+        const result = inventory.replace(body); auth.audit(current?.safeUser || null, "inventory.update", { fromRevision: body.revision, toRevision: result.revision }); return sendJson(response, 200, result);
       } catch (error) {
         return sendJson(response, error.code === "REVISION_CONFLICT" ? 409 : 400, { error: error.message, currentRevision: error.currentRevision });
       }
@@ -74,7 +98,7 @@ const server = http.createServer(async (request, response) => {
   if (request.method === "GET" && url.pathname === "/api/catalog") return sendJson(response, 200, catalog.available());
   if (request.method === "GET" && publicFiles[url.pathname] && (config.simulatorEnabled || url.pathname.startsWith("/estoque"))) {
     const [file, type] = publicFiles[url.pathname];
-    response.writeHead(200, { "Content-Type": type, "Cache-Control": "no-store" });
+    response.writeHead(200, { "Content-Type": type, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY", "Content-Security-Policy": "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" });
     return response.end(fs.readFileSync(path.join(config.root, "public", file)));
   }
   if (request.method === "POST" && url.pathname === "/api/chat" && config.simulatorEnabled) {

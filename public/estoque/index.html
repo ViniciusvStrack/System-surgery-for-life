@@ -6,9 +6,13 @@
   <meta name="theme-color" content="#101b2d">
   <title>Estoque | Surgery For Life</title>
   <link rel="stylesheet" href="/estoque/styles.css">
+  <link rel="stylesheet" href="/estoque/auth.css">
 </head>
 <body>
-  <div class="shell">
+  <section class="login-screen" id="loginScreen">
+    <form class="login-card" id="loginForm"><div class="login-brand"><span class="brand-mark">S</span><div><p class="eyebrow">ÁREA RESTRITA</p><h1>Surgery For Life</h1></div></div><p>Acesse o painel com sua conta individual.</p><label>E-mail<input name="email" type="email" autocomplete="username" required></label><label>Senha<input name="password" type="password" autocomplete="current-password" minlength="12" required></label><label id="loginCodeField" class="hidden">Código do autenticador<input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"></label><button class="button primary" type="submit">Entrar no painel</button><button class="text-button" type="button" id="forgotButton">Esqueci minha senha</button><small id="loginMessage"></small></form>
+  </section>
+  <div class="shell hidden" id="appShell">
     <aside class="sidebar">
       <a class="brand" href="/estoque"><span class="brand-mark">S</span><span><strong>Surgery For Life</strong><small>Gestão de estoque</small></span></a>
       <nav id="navigation" aria-label="Navegação principal">
@@ -16,6 +20,8 @@
         <button class="nav-item" data-view="products"><span>□</span> Produtos <b id="lowBadge">0</b></button>
         <button class="nav-item" data-view="movements"><span>⇄</span> Movimentações</button>
         <button class="nav-item" data-view="history"><span>≡</span> Histórico</button>
+        <button class="nav-item admin-only" data-view="users"><span>♙</span> Usuários</button>
+        <button class="nav-item admin-only" data-view="audit"><span>◎</span> Auditoria</button>
       </nav>
       <div class="sidebar-footer"><span id="connectionDot"></span><span><strong id="connectionText">Conectando…</strong><small id="revisionText">Estoque central</small></span></div>
     </aside>
@@ -23,7 +29,7 @@
     <main>
       <header class="topbar">
         <div><p class="eyebrow">ATELIER • CAMARAGIBE, PE</p><h1 id="pageTitle">Visão geral</h1></div>
-        <div class="top-actions"><button class="button secondary" id="refreshButton">↻ Atualizar</button><button class="button primary" id="newMovement">+ Movimentação</button></div>
+        <div class="top-actions"><div class="user-chip"><span id="currentUserName">Usuário</span><small id="currentUserRole">perfil</small></div><button class="button secondary" id="logoutButton">Sair</button><button class="button secondary" id="refreshButton">↻ Atualizar</button><button class="button primary write-action" id="newMovement">+ Movimentação</button></div>
       </header>
 
       <section class="view active" id="view-dashboard">
@@ -40,7 +46,7 @@
       </section>
 
       <section class="view" id="view-products">
-        <div class="toolbar"><label class="search">⌕ <input id="productSearch" placeholder="Buscar nome, SKU, cor ou tamanho"></label><button class="button primary" id="newProduct">+ Novo produto</button></div>
+        <div class="toolbar"><label class="search">⌕ <input id="productSearch" placeholder="Buscar nome, SKU, cor ou tamanho"></label><button class="button primary write-action" id="newProduct">+ Novo produto</button></div>
         <article class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>Produto</th><th>SKU</th><th>Cor</th><th>Tamanho</th><th>Saldo</th><th>Mínimo</th><th>Preço</th><th>Status</th><th></th></tr></thead><tbody id="productsTable"></tbody></table></div></article>
       </section>
 
@@ -52,12 +58,16 @@
       <section class="view" id="view-history">
         <article class="panel"><div class="panel-head"><div><p class="eyebrow">AUDITORIA</p><h2>Histórico completo</h2></div><button class="button secondary" id="exportButton">Exportar CSV</button></div><div id="historyTimeline" class="timeline expanded"></div></article>
       </section>
+      <section class="view" id="view-users"><div class="toolbar"><div><p class="eyebrow">ACESSO</p><h2>Equipe e permissões</h2></div><button class="button primary" id="newUser">+ Novo usuário</button></div><article class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>2FA</th><th>Status</th><th>Criado em</th></tr></thead><tbody id="usersTable"></tbody></table></div></article></section>
+      <section class="view" id="view-audit"><article class="panel"><div class="panel-head"><div><p class="eyebrow">SEGURANÇA</p><h2>Registro de auditoria</h2></div></div><div id="auditTimeline" class="timeline expanded"></div></article></section>
     </main>
   </div>
 
   <dialog id="productDialog"><form method="dialog" id="productForm"><div class="dialog-head"><div><p class="eyebrow">CADASTRO</p><h2 id="productDialogTitle">Novo produto</h2></div><button value="cancel" class="close" aria-label="Fechar">×</button></div><input type="hidden" name="id"><div class="form-grid"><label class="span-2">Nome<input name="nome" required maxlength="100"></label><label>Cor<input name="cor" required maxlength="60"></label><label>Tamanho<input name="tam" required maxlength="20"></label><label>Coleção<input name="colecao" value="Atelier 2026" maxlength="80"></label><label>SKU<input name="sku" required maxlength="80"></label><label>Saldo<input name="qtd" type="number" min="0" required></label><label>Estoque mínimo<input name="min" type="number" min="0" required></label><label>Custo<input name="custo" type="number" min="0" step="0.01" required></label><label>Preço de venda<input name="preco" type="number" min="0" step="0.01" required></label></div><div class="dialog-actions"><button value="cancel" class="button secondary">Cancelar</button><button type="submit" value="default" class="button primary">Salvar produto</button></div></form></dialog>
 
   <dialog id="movementDialog"><form method="dialog" id="movementForm"><div class="dialog-head"><div><p class="eyebrow">ESTOQUE</p><h2>Nova movimentação</h2></div><button value="cancel" class="close" aria-label="Fechar">×</button></div><div class="form-grid"><label>Tipo<select name="tipo"><option value="entrada">Entrada</option><option value="saida">Saída</option></select></label><label>Produto<select name="prodId" required></select></label><label>Quantidade<input name="qtd" type="number" min="1" value="1" required></label><label>Origem / cliente<input name="responsavel" maxlength="120" required></label><label class="span-2">Observação<textarea name="obs" rows="3" maxlength="300"></textarea></label></div><div class="dialog-actions"><button value="cancel" class="button secondary">Cancelar</button><button type="submit" value="default" class="button primary">Registrar movimentação</button></div></form></dialog>
+  <dialog id="twoFactorDialog"><form method="dialog" id="twoFactorForm"><div class="dialog-head"><div><p class="eyebrow">SEGURANÇA OBRIGATÓRIA</p><h2>Ativar autenticação em dois fatores</h2></div></div><p>Adicione esta chave em um aplicativo autenticador compatível com TOTP.</p><code id="twoFactorSecret"></code><label>Código de 6 dígitos<input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required></label><div class="dialog-actions"><button type="submit" value="default" class="button primary">Confirmar e ativar</button></div></form></dialog>
+  <dialog id="userDialog"><form method="dialog" id="userForm"><div class="dialog-head"><div><p class="eyebrow">EQUIPE</p><h2>Novo usuário</h2></div><button value="cancel" class="close">×</button></div><div class="form-grid"><label>Nome<input name="name" required minlength="2"></label><label>E-mail<input name="email" type="email" required></label><label>Perfil<select name="role"><option value="stock">Estoque</option><option value="support">Atendimento</option><option value="admin">Administrador</option></select></label><label>Senha inicial<input name="password" type="password" minlength="12" required></label></div><div class="dialog-actions"><button value="cancel" class="button secondary">Cancelar</button><button type="submit" value="default" class="button primary">Criar usuário</button></div></form></dialog>
   <div id="toast" role="status"></div>
   <script type="module" src="/estoque/app.js"></script>
 </body>

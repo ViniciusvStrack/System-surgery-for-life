@@ -1,7 +1,7 @@
 import { InventoryApi } from "./api.js";
 
 const api = new InventoryApi();
-const state = { revision: 0, products: [], movements: [], view: "dashboard", timer: null };
+const state = { revision: 0, products: [], movements: [], view: "dashboard", timer: null, user: null };
 const $ = (selector) => document.querySelector(selector);
 const money = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
 const date = (value) => new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
@@ -18,10 +18,21 @@ function setConnection(online) {
   $("#revisionText").textContent = online ? `Revisão ${state.revision}` : "Clique em atualizar";
 }
 
-async function connect(forceToken = false) {
-  try { applySnapshot(await api.authenticate(forceToken)); setConnection(true); startPolling(); }
-  catch (error) { if (error.status === 401 && !forceToken) return connect(true); setConnection(false); toast(error.message, true); }
+async function connect() {
+  try {
+    const identity = await api.me(); state.user = identity.user; configureAccess();
+    if (identity.requiresTwoFactorSetup) await beginTwoFactorSetup();
+    applySnapshot(await api.read()); setConnection(true); startPolling(); $("#loginScreen").classList.add("hidden"); $("#appShell").classList.remove("hidden");
+  } catch (error) { $("#appShell").classList.add("hidden"); $("#loginScreen").classList.remove("hidden"); if (error.status !== 401 && error.code !== "MFA_SETUP_REQUIRED") $("#loginMessage").textContent = error.message; }
 }
+
+function configureAccess() {
+  const labels = { admin: "Administrador", stock: "Estoque", support: "Atendimento" }; $("#currentUserName").textContent = state.user.name; $("#currentUserRole").textContent = labels[state.user.role];
+  document.querySelectorAll(".admin-only").forEach((element) => element.classList.toggle("hidden", state.user.role !== "admin"));
+  document.querySelectorAll(".write-action").forEach((element) => element.classList.toggle("hidden", state.user.role === "support"));
+}
+
+async function beginTwoFactorSetup() { const setup = await api.setupTwoFactor(); $("#twoFactorSecret").textContent = setup.secret; $("#twoFactorDialog").showModal(); }
 
 function applySnapshot(snapshot) {
   state.revision = snapshot.revision; state.products = snapshot.products; state.movements = snapshot.movements; render();
@@ -62,7 +73,7 @@ function renderLow(products) {
 function renderProducts() {
   const query = $("#productSearch").value.toLowerCase().trim();
   const products = state.products.filter((product) => [product.nome, product.sku, product.cor, product.tam].some((value) => String(value).toLowerCase().includes(query)));
-  $("#productsTable").innerHTML = products.length ? products.map((product) => `<tr><td><strong>${escapeHtml(product.nome)}</strong><span class="product-sub">${escapeHtml(product.colecao)}</span></td><td>${escapeHtml(product.sku)}</td><td>${escapeHtml(product.cor)}</td><td>${escapeHtml(product.tam)}</td><td><strong>${product.qtd}</strong></td><td>${product.min}</td><td>${money(product.preco)}</td><td><span class="status ${product.qtd <= product.min ? "low" : "ok"}">${product.qtd <= 0 ? "ZERADO" : product.qtd <= product.min ? "REPOR" : "SAUDÁVEL"}</span></td><td><div class="row-actions"><button data-edit="${product.id}">Editar</button><button data-delete="${product.id}">Excluir</button></div></td></tr>`).join("") : '<tr><td colspan="9" class="empty">Nenhum produto encontrado.</td></tr>';
+  $("#productsTable").innerHTML = products.length ? products.map((product) => `<tr><td><strong>${escapeHtml(product.nome)}</strong><span class="product-sub">${escapeHtml(product.colecao)}</span></td><td>${escapeHtml(product.sku)}</td><td>${escapeHtml(product.cor)}</td><td>${escapeHtml(product.tam)}</td><td><strong>${product.qtd}</strong></td><td>${product.min}</td><td>${money(product.preco)}</td><td><span class="status ${product.qtd <= product.min ? "low" : "ok"}">${product.qtd <= 0 ? "ZERADO" : product.qtd <= product.min ? "REPOR" : "SAUDÁVEL"}</span></td><td>${state.user?.role !== "support" ? `<div class="row-actions"><button data-edit="${product.id}">Editar</button><button data-delete="${product.id}">Excluir</button></div>` : ""}</td></tr>`).join("") : '<tr><td colspan="9" class="empty">Nenhum produto encontrado.</td></tr>';
 }
 
 function movementRow(movement) {
@@ -81,11 +92,15 @@ function timelineRow(movement) {
 function renderTimeline() { const items = sortedMovements(); $("#recentMovements").innerHTML = items.length ? items.slice(0, 6).map(timelineRow).join("") : '<div class="empty">Nenhuma atividade recente.</div>'; $("#historyTimeline").innerHTML = items.length ? items.map(timelineRow).join("") : '<div class="empty">Nenhum histórico.</div>'; }
 function populateProductSelect() { $("#movementForm [name=prodId]").innerHTML = state.products.map((product) => `<option value="${product.id}">${escapeHtml(product.sku)} — ${escapeHtml(product.nome)} ${escapeHtml(product.cor)} ${escapeHtml(product.tam)} (${product.qtd})</option>`).join(""); }
 
-function showView(view) {
+async function showView(view) {
   state.view = view; document.querySelectorAll(".view").forEach((element) => element.classList.toggle("active", element.id === `view-${view}`));
   document.querySelectorAll(".nav-item").forEach((button) => button.classList.toggle("active", button.dataset.view === view));
-  $("#pageTitle").textContent = ({ dashboard: "Visão geral", products: "Produtos", movements: "Movimentações", history: "Histórico" })[view];
+  $("#pageTitle").textContent = ({ dashboard: "Visão geral", products: "Produtos", movements: "Movimentações", history: "Histórico", users: "Usuários", audit: "Auditoria" })[view];
+  if (view === "users") await renderUsers(); if (view === "audit") await renderAudit();
 }
+
+async function renderUsers() { try { const users = await api.users(); $("#usersTable").innerHTML = users.map((user) => `<tr><td><strong>${escapeHtml(user.name)}</strong></td><td>${escapeHtml(user.email)}</td><td>${escapeHtml(user.role)}</td><td><span class="status ${user.twoFactorEnabled ? "ok" : "low"}">${user.twoFactorEnabled ? "ATIVO" : "PENDENTE"}</span></td><td>${user.active ? "Ativo" : "Desativado"}</td><td>${date(user.createdAt)}</td></tr>`).join(""); } catch (error) { toast(error.message, true); } }
+async function renderAudit() { try { const entries = await api.audit(); $("#auditTimeline").innerHTML = entries.length ? entries.map((entry) => `<div class="timeline-row"><span class="type entrada">◎</span><div class="info"><strong>${escapeHtml(entry.action)}</strong><small>${escapeHtml(entry.actor?.name || "Sistema")} · ${date(entry.timestamp)}</small></div></div>`).join("") : '<div class="empty">Nenhum evento registrado.</div>'; } catch (error) { toast(error.message, true); } }
 
 function openProduct(id = null) {
   const form = $("#productForm"); form.reset(); form.elements.colecao.value = "Atelier 2026"; form.elements.qtd.value = 0; form.elements.min.value = 2;
@@ -121,5 +136,16 @@ document.addEventListener("click", async (event) => {
 $("#newProduct").addEventListener("click", () => openProduct()); $("#newMovement").addEventListener("click", () => $("#movementDialog").showModal());
 $("#refreshButton").addEventListener("click", () => refresh()); $("#productSearch").addEventListener("input", renderProducts);
 $("#exportButton").addEventListener("click", () => { const rows = [["Data", "Tipo", "SKU", "Produto", "Quantidade", "Saldo", "Responsável", "Observação"], ...sortedMovements().map((movement) => { const product = productForMovement(movement); return [movement.date, movement.tipo, product?.sku || "", product?.nome || "Produto excluído", movement.qtd, movement.saldoDepois ?? "", movement.forn || movement.cliente || "", movement.obs || movement.motivo || ""]; })]; const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\n"); const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv" })); link.download = `estoque-surgery-for-life-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(link.href); });
+
+$("#loginForm").addEventListener("submit", async (event) => {
+  event.preventDefault(); const form = event.currentTarget; $("#loginMessage").textContent = "Autenticando…";
+  try { const result = await api.login(form.elements.email.value, form.elements.password.value, form.elements.code.value); if (result.requiresTwoFactor) { $("#loginCodeField").classList.remove("hidden"); form.elements.code.required = true; $("#loginMessage").textContent = "Digite o código do aplicativo autenticador."; return; } await connect(); }
+  catch (error) { $("#loginMessage").textContent = error.message; }
+});
+$("#logoutButton").addEventListener("click", async () => { await api.logout(); clearInterval(state.timer); state.timer = null; state.user = null; $("#loginForm").reset(); $("#loginCodeField").classList.add("hidden"); await connect(); });
+$("#forgotButton").addEventListener("click", async () => { const email = prompt("Informe o e-mail da conta:"); if (!email) return; try { const result = await api.forgotPassword(email); let token = result.developmentResetToken; if (token) token = prompt("Ambiente local: copie este token para redefinir a senha:", token); else alert(result.message); if (token) { const password = prompt("Digite a nova senha (mínimo de 12 caracteres):"); if (password) { await api.resetPassword(token, password); alert("Senha redefinida. Faça login novamente."); } } } catch (error) { $("#loginMessage").textContent = error.message; } });
+$("#twoFactorForm").addEventListener("submit", async (event) => { event.preventDefault(); try { await api.confirmTwoFactor(event.currentTarget.elements.code.value); $("#twoFactorDialog").close(); await connect(); } catch (error) { toast(error.message, true); } });
+$("#newUser").addEventListener("click", () => $("#userDialog").showModal());
+$("#userForm").addEventListener("submit", async (event) => { event.preventDefault(); try { await api.createUser(Object.fromEntries(new FormData(event.currentTarget))); $("#userDialog").close(); event.currentTarget.reset(); await renderUsers(); toast("Usuário criado com sucesso."); } catch (error) { toast(error.message, true); } });
 
 connect();

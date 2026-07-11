@@ -17,6 +17,8 @@ Abra `http://localhost:3002` no navegador para conversar em um simulador visual 
 
 Painel integrado do estoque: `http://localhost:3002/estoque`. A interface profissional está separada em `public/estoque/index.html`, `styles.css`, `api.js` e `app.js`. Consulte `docs/implantacao-producao.md` e `docs/integracao-whatsapp.md` para produção.
 
+O painel possui contas individuais, perfis, sessões seguras, auditoria, recuperação de senha e 2FA obrigatório para administradores. Consulte `docs/autenticacao.md`.
+
 Em produção, defina `ENABLE_SIMULATOR=false` no `.env` se não quiser deixar o simulador público.
 
 ## Personalização
