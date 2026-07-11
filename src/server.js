@@ -9,6 +9,7 @@ import { InventoryService } from "./inventory.js";
 import { extractMessages, verifySignature, WhatsAppClient } from "./whatsapp.js";
 import { money } from "./utils.js";
 import { AuthService } from "./auth.js";
+import QRCode from "qrcode";
 
 await loadEnv();
 const config = getConfig();
@@ -68,7 +69,7 @@ const server = http.createServer(async (request, response) => {
     const current = auth.sessionFrom(request); return current ? sendJson(response, 200, { user: current.safeUser, csrf: current.session.csrf, requiresTwoFactorSetup: current.user.role === "admin" && !current.user.twoFactor?.enabled }) : sendJson(response, 401, { error: "Autenticação necessária." });
   }
   if (request.method === "POST" && url.pathname === "/api/auth/logout") { auth.logout(request); return sendJson(response, 200, { ok: true }, { "Set-Cookie": auth.clearCookie() }); }
-  if (request.method === "POST" && url.pathname === "/api/auth/2fa/setup") { try { return sendJson(response, 200, auth.setupTwoFactor(request)); } catch (error) { return sendJson(response, error.status || 400, { error: error.message }); } }
+  if (request.method === "POST" && url.pathname === "/api/auth/2fa/setup") { try { const setup = auth.setupTwoFactor(request); setup.qrCode = await QRCode.toDataURL(setup.uri, { errorCorrectionLevel: "M", margin: 2, width: 280, color: { dark: "#101B2DFF", light: "#FFFFFFFF" } }); return sendJson(response, 200, setup); } catch (error) { return sendJson(response, error.status || 400, { error: error.message }); } }
   if (request.method === "POST" && url.pathname === "/api/auth/2fa/confirm") { try { const body = JSON.parse((await readBody(request)).toString("utf8")); return sendJson(response, 200, { user: auth.confirmTwoFactor(request, body.code) }); } catch (error) { return sendJson(response, error.status || 400, { error: error.message }); } }
   if (request.method === "POST" && url.pathname === "/api/auth/forgot-password") { const body = JSON.parse((await readBody(request)).toString("utf8")); const token = auth.requestReset(body.email); return sendJson(response, 200, { message: "Se a conta existir, as instruções serão enviadas.", developmentResetToken: config.appEnv === "development" ? token : undefined }); }
   if (request.method === "POST" && url.pathname === "/api/auth/reset-password") { try { const body = JSON.parse((await readBody(request)).toString("utf8")); auth.resetPassword(body.token, body.password); return sendJson(response, 200, { ok: true }); } catch (error) { return sendJson(response, 400, { error: error.message }); } }

@@ -32,7 +32,7 @@ function configureAccess() {
   document.querySelectorAll(".write-action").forEach((element) => element.classList.toggle("hidden", state.user.role === "support"));
 }
 
-async function beginTwoFactorSetup() { const setup = await api.setupTwoFactor(); $("#twoFactorSecret").textContent = setup.secret; $("#twoFactorDialog").showModal(); }
+async function beginTwoFactorSetup() { const setup = await api.setupTwoFactor(); $("#twoFactorSecret").textContent = setup.secret; $("#twoFactorQr").src = setup.qrCode; $("#twoFactorDialog").showModal(); }
 
 function applySnapshot(snapshot) {
   state.revision = snapshot.revision; state.products = snapshot.products; state.movements = snapshot.movements; render();

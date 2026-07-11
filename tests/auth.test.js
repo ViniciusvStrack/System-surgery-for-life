@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { AuthService, hashPassword, totp, verifyPassword, verifyTotp } from "../src/auth.js";
+import QRCode from "qrcode";
 
 function setup() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "sfl-auth-"));
@@ -20,6 +21,13 @@ test("senha usa scrypt com salt e comparação segura", () => {
 test("TOTP gera e valida código temporal de seis dígitos", () => {
   const secret = "JBSWY3DPEHPK3PXP"; const code = totp(secret);
   assert.match(code, /^\d{6}$/); assert.equal(verifyTotp(secret, code), true); assert.equal(verifyTotp(secret, "000000") && code !== "000000", false);
+});
+
+test("gera QR Code PNG local para URI padrão do autenticador", async () => {
+  const uri = "otpauth://totp/Surgery%20For%20Life%3Ateste?secret=JBSWY3DPEHPK3PXP&issuer=Surgery%20For%20Life&digits=6&period=30";
+  const image = await QRCode.toDataURL(uri, { width: 280 });
+  assert.match(image, /^data:image\/png;base64,/);
+  assert.ok(image.length > 500);
 });
 
 test("administrador precisa configurar 2FA antes de autorizar operações", () => {
