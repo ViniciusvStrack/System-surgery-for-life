@@ -37,3 +37,14 @@ export function getConfig() {
     freeShippingFrom: Number(process.env.FREE_SHIPPING_FROM || 0),
   };
 }
+
+export function validateConfig(config) {
+  if (!Number.isInteger(config.port) || config.port < 1 || config.port > 65535) throw new Error("PORT deve estar entre 1 e 65535.");
+  if (config.deliveryFee < 0 || config.freeShippingFrom < 0) throw new Error("Valores de frete não podem ser negativos.");
+  if (config.appEnv === "production") {
+    if (config.simulatorEnabled) throw new Error("ENABLE_SIMULATOR deve ser false em produção.");
+    if (!config.authEncryptionKey || config.authEncryptionKey.length < 32 || config.authEncryptionKey === "development-only-change-me") throw new Error("AUTH_ENCRYPTION_KEY forte é obrigatória em produção.");
+    if (!config.verifyToken || !config.appSecret) throw new Error("VERIFY_TOKEN e META_APP_SECRET são obrigatórios em produção.");
+  }
+  return config;
+}

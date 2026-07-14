@@ -3,22 +3,25 @@ import fs from "node:fs";
 import path from "node:path";
 import { Catalog } from "./catalog.js";
 import { StoreBot } from "./bot.js";
-import { getConfig, loadEnv } from "./config.js";
+import { getConfig, loadEnv, validateConfig } from "./config.js";
 import { JsonStore } from "./json-store.js";
 import { InventoryService } from "./inventory.js";
 import { extractMessages, verifySignature, WhatsAppClient } from "./whatsapp.js";
 import { money } from "./utils.js";
 import { AuthService } from "./auth.js";
 import QRCode from "qrcode";
+import { SlidingWindowRateLimiter, WebhookDeduplicator } from "./security.js";
 
 await loadEnv();
-const config = getConfig();
+const config = validateConfig(getConfig());
 const inventory = new InventoryService(path.join(config.root, "runtime/inventory.json"));
 const catalog = new Catalog(path.join(config.root, "data/catalog.json"), inventory);
 const sessions = new JsonStore(path.join(config.root, "runtime/sessions.json"), {});
 const orders = new JsonStore(path.join(config.root, "runtime/orders.json"), []);
 const bot = new StoreBot({ catalog, sessions, orders, faqFile: path.join(config.root, "data/faqs.json"), config });
 const whatsapp = new WhatsAppClient(config);
+const authRateLimiter = new SlidingWindowRateLimiter({ limit: 30, windowMs: 60_000 });
+const webhookDeduplicator = new WebhookDeduplicator(new JsonStore(path.join(config.root, "runtime/webhook-events.json"), []));
 const auth = new AuthService({ usersFile: path.join(config.root, "runtime/users.json"), sessionsFile: path.join(config.root, "runtime/auth-sessions.json"), resetsFile: path.join(config.root, "runtime/password-resets.json"), auditFile: path.join(config.root, "runtime/audit.json"), encryptionKey: config.authEncryptionKey, adminEmail: config.bootstrapAdminEmail, adminPassword: config.bootstrapAdminPassword, secureCookies: config.appEnv === "production" });
 
 const publicFiles = {
@@ -39,19 +42,21 @@ function sendJson(response, status, value, headers = {}) {
 }
 
 function isAdmin(request) {
-  return Boolean(config.adminToken) && request.headers["x-admin-token"] === config.adminToken;
+  return config.appEnv !== "production" && Boolean(config.adminToken) && request.headers["x-admin-token"] === config.adminToken;
 }
 
 function requestContext(request) { return { ip: request.socket.remoteAddress || "", userAgent: request.headers["user-agent"] || "" }; }
 
-function readBody(request) {
+function readBody(request, maxBytes = 1_000_000) {
   return new Promise((resolve, reject) => {
-    const chunks = []; let size = 0;
-    request.on("data", (chunk) => { size += chunk.length; if (size > 1_000_000) request.destroy(); else chunks.push(chunk); });
-    request.on("end", () => resolve(Buffer.concat(chunks)));
+    const chunks = []; let size = 0; let exceeded = false;
+    request.on("data", (chunk) => { size += chunk.length; if (size > maxBytes) exceeded = true; else chunks.push(chunk); });
+    request.on("end", () => { if (exceeded) reject(Object.assign(new Error("Payload excede o limite permitido."), { status: 413 })); else resolve(Buffer.concat(chunks)); });
     request.on("error", reject);
   });
 }
+
+function requireCsrf(request) { const current = auth.sessionFrom(request); if (!current) throw Object.assign(new Error("Autenticação necessária."), { status: 401 }); if (request.headers["x-csrf-token"] !== current.session.csrf) throw Object.assign(new Error("Proteção CSRF inválida."), { status: 403 }); return current; }
 
 function orderForStore(order) {
   const items = order.items.map((x) => `• ${x.name} (${x.variant}) × ${x.qty}`).join("\n");
@@ -61,6 +66,10 @@ function orderForStore(order) {
 
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
+  if (request.method === "POST" && ["/api/auth/login", "/api/auth/forgot-password", "/api/auth/reset-password"].includes(url.pathname)) {
+    const rate = authRateLimiter.consume(request.socket.remoteAddress || "unknown");
+    if (!rate.allowed) return sendJson(response, 429, { error: "Muitas solicitações. Tente novamente em instantes." }, { "Retry-After": String(rate.retryAfterSeconds) });
+  }
   if (request.method === "POST" && url.pathname === "/api/auth/login") {
     try { const result = auth.login(JSON.parse((await readBody(request)).toString("utf8")), requestContext(request)); if (result.requiresTwoFactor) return sendJson(response, 202, result); return sendJson(response, 200, { user: result.user, csrf: result.csrf, requiresTwoFactorSetup: result.requiresTwoFactorSetup }, { "Set-Cookie": auth.cookie(result.token) }); }
     catch (error) { return sendJson(response, error.status || 400, { error: error.message }); }
@@ -68,9 +77,9 @@ const server = http.createServer(async (request, response) => {
   if (request.method === "GET" && url.pathname === "/api/auth/me") {
     const current = auth.sessionFrom(request); return current ? sendJson(response, 200, { user: current.safeUser, csrf: current.session.csrf, requiresTwoFactorSetup: current.user.role === "admin" && !current.user.twoFactor?.enabled }) : sendJson(response, 401, { error: "Autenticação necessária." });
   }
-  if (request.method === "POST" && url.pathname === "/api/auth/logout") { auth.logout(request); return sendJson(response, 200, { ok: true }, { "Set-Cookie": auth.clearCookie() }); }
-  if (request.method === "POST" && url.pathname === "/api/auth/2fa/setup") { try { const setup = auth.setupTwoFactor(request); setup.qrCode = await QRCode.toDataURL(setup.uri, { errorCorrectionLevel: "M", margin: 2, width: 280, color: { dark: "#101B2DFF", light: "#FFFFFFFF" } }); return sendJson(response, 200, setup); } catch (error) { return sendJson(response, error.status || 400, { error: error.message }); } }
-  if (request.method === "POST" && url.pathname === "/api/auth/2fa/confirm") { try { const body = JSON.parse((await readBody(request)).toString("utf8")); return sendJson(response, 200, { user: auth.confirmTwoFactor(request, body.code) }); } catch (error) { return sendJson(response, error.status || 400, { error: error.message }); } }
+  if (request.method === "POST" && url.pathname === "/api/auth/logout") { try { requireCsrf(request); auth.logout(request); return sendJson(response, 200, { ok: true }, { "Set-Cookie": auth.clearCookie() }); } catch (error) { return sendJson(response, error.status || 400, { error: error.message }); } }
+  if (request.method === "POST" && url.pathname === "/api/auth/2fa/setup") { try { requireCsrf(request); const setup = auth.setupTwoFactor(request); setup.qrCode = await QRCode.toDataURL(setup.uri, { errorCorrectionLevel: "M", margin: 2, width: 280, color: { dark: "#101B2DFF", light: "#FFFFFFFF" } }); return sendJson(response, 200, setup); } catch (error) { return sendJson(response, error.status || 400, { error: error.message }); } }
+  if (request.method === "POST" && url.pathname === "/api/auth/2fa/confirm") { try { requireCsrf(request); const body = JSON.parse((await readBody(request)).toString("utf8")); return sendJson(response, 200, { user: auth.confirmTwoFactor(request, body.code) }); } catch (error) { return sendJson(response, error.status || 400, { error: error.message }); } }
   if (request.method === "POST" && url.pathname === "/api/auth/forgot-password") { const body = JSON.parse((await readBody(request)).toString("utf8")); const token = auth.requestReset(body.email); return sendJson(response, 200, { message: "Se a conta existir, as instruções serão enviadas.", developmentResetToken: config.appEnv === "development" ? token : undefined }); }
   if (request.method === "POST" && url.pathname === "/api/auth/reset-password") { try { const body = JSON.parse((await readBody(request)).toString("utf8")); auth.resetPassword(body.token, body.password); return sendJson(response, 200, { ok: true }); } catch (error) { return sendJson(response, 400, { error: error.message }); } }
   if (url.pathname === "/api/admin/users") {
@@ -109,7 +118,7 @@ const server = http.createServer(async (request, response) => {
       const sessionId = String(body.sessionId || "simulador").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80);
       const result = await bot.handle(`sim-${sessionId}`, body.message, String(body.name || "Cliente").slice(0, 80));
       return sendJson(response, 200, { messages: result.messages, orderId: result.order?.id, handoff: Boolean(result.handoff) });
-    } catch { return sendJson(response, 400, { error: "Não foi possível processar a mensagem" }); }
+    } catch (error) { return sendJson(response, error.status || 400, { error: error.status === 413 ? error.message : "Não foi possível processar a mensagem" }); }
   }
   if (request.method === "POST" && url.pathname === "/api/reset" && config.simulatorEnabled) {
     try {
@@ -131,11 +140,14 @@ const server = http.createServer(async (request, response) => {
       const messages = extractMessages(JSON.parse(raw.toString("utf8")));
       response.writeHead(200); response.end("EVENT_RECEIVED"); // Responde rápido para a Meta não repetir o evento.
       for (const message of messages) {
-        await whatsapp.markRead(message.id);
-        const result = await bot.handle(message.from, message.text, message.name);
-        for (const text of result.messages) await whatsapp.sendText(message.from, text);
-        if (result.order && config.storeNumber) await whatsapp.sendText(config.storeNumber, orderForStore(result.order));
-        if (result.handoff && config.storeNumber) await whatsapp.sendText(config.storeNumber, `🙋 Cliente ${message.name} (${message.from}) solicitou atendimento humano.`);
+        if (!webhookDeduplicator.claim(message.id)) continue;
+        try {
+          await whatsapp.markRead(message.id);
+          const result = await bot.handle(message.from, message.text, message.name);
+          for (const text of result.messages) await whatsapp.sendText(message.from, text);
+          if (result.order && config.storeNumber) await whatsapp.sendText(config.storeNumber, orderForStore(result.order));
+          if (result.handoff && config.storeNumber) await whatsapp.sendText(config.storeNumber, `🙋 Cliente ${message.name} (${message.from}) solicitou atendimento humano.`);
+        } catch (error) { webhookDeduplicator.release(message.id); throw error; }
       }
       return;
     } catch (error) { console.error(error); if (!response.headersSent) { response.writeHead(500); response.end("Erro interno"); } return; }
@@ -144,3 +156,4 @@ const server = http.createServer(async (request, response) => {
 });
 
 server.listen(config.port, () => console.log(`Bot da ${config.storeName} ativo em http://localhost:${config.port}`));
+for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => server.close(() => process.exit(0)));

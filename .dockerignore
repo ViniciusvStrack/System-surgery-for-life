@@ -1,0 +1,11 @@
+.git
+.github
+.agents
+.env
+node_modules
+runtime/*.json
+backups
+*.log
+docs
+tests
+legacy

@@ -1,0 +1,21 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      APP_ENV: production
+      ENABLE_SIMULATOR: "false"
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - surgery_runtime:/app/runtime
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  surgery_runtime:
