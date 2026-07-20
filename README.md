@@ -13,11 +13,13 @@ Copy-Item .env.example .env
 npm start
 ```
 
-Abra `http://localhost:3002` no navegador para conversar em um simulador visual semelhante ao WhatsApp. O botão ↻ reinicia a conversa. Abra `http://localhost:3002/health` para verificar o servidor.
+Com a porta padrão, abra `http://localhost:3000` para acessar a loja Surgery For Life, explorar a coleção, personalizar produtos e usar a sacola. O simulador visual do WhatsApp foi preservado em `http://localhost:3000/simulador`; o botão ↻ reinicia a conversa. Abra `http://localhost:3000/health` para verificar o servidor. Se alterar `PORT`, use a mesma porta nas URLs.
 
-Painel integrado do estoque: `http://localhost:3002/estoque`. A interface profissional está separada em `public/estoque/index.html`, `styles.css`, `api.js` e `app.js`. Consulte `docs/implantacao-producao.md` e `docs/integracao-whatsapp.md` para produção.
+Painel integrado do estoque: `http://localhost:3000/estoque`. A interface profissional está separada em `public/estoque/index.html`, `styles.css`, `api.js` e `app.js`. Consulte `docs/implantacao-producao.md` e `docs/integracao-whatsapp.md` para produção.
 
 O painel possui contas individuais, perfis, sessões seguras, auditoria, recuperação de senha e 2FA obrigatório para administradores. Consulte `docs/autenticacao.md`.
+
+O acesso dos clientes usa Google OAuth 2.0/OpenID Connect, separado das contas administrativas. Para configurar Client ID, segredo, callback HTTPS e política de produção, consulte `docs/login-google.md`.
 
 Em produção, defina `ENABLE_SIMULATOR=false` no `.env` se não quiser deixar o simulador público.
 
@@ -26,7 +28,8 @@ Em produção, defina `ENABLE_SIMULATOR=false` no `.env` se não quiser deixar o
 - Edite `data/catalog.json` com produtos, estoque, preços e variações reais.
 - Edite `data/faqs.json` com políticas e respostas da loja.
 - Edite `.env` com nome da loja, frete e credenciais da Meta.
-- Pedidos ficam em `runtime/orders.json`; sessões ficam em `runtime/sessions.json`.
+- Estoque, pedidos, movimentações e idempotência ficam no agregado atômico `runtime/inventory.json`; sessões do bot ficam em `runtime/sessions.json`.
+- O contrato do checkout e do handoff assinado está em `docs/checkout-whatsapp.md`.
 
 ## Conectar ao WhatsApp Cloud API
 

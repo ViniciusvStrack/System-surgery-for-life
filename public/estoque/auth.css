@@ -7,33 +7,43 @@
   place-items: center;
   padding: 20px;
   background:
-    radial-gradient(circle at 20% 10%, #263b5b 0, transparent 35%), #101b2d;
+    radial-gradient(circle at 18% 8%, #2a3d60 0, transparent 34%),
+    radial-gradient(circle at 88% 92%, #b4915238 0, transparent 30%), #0f1d38;
 }
 .login-card {
   width: min(430px, 100%);
   display: grid;
   gap: 16px;
-  padding: 34px;
+  padding: 0 34px 34px;
+  overflow: hidden;
+  border: 1px solid #e5dac4;
   border-radius: 18px;
-  background: #fff;
+  background: #fffdf8;
   box-shadow: 0 25px 90px #0007;
 }
 .login-brand {
-  display: flex;
-  align-items: center;
-  gap: 14px;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  margin: 0 -34px 8px;
+  padding: 20px 28px 15px;
+  background: #0f1d38;
 }
-.login-brand .brand-mark {
-  color: #9b7438;
-  border-color: #b98a42;
+.login-brand img {
+  width: min(235px, 78vw);
+  height: auto;
 }
-.login-brand h1 {
-  margin: 0;
-  font-family: Georgia;
+.login-brand .eyebrow {
+  margin: -5px 0 0;
+  color: #e9d9b4;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-align: center;
 }
 .login-card > p {
   margin: 0;
-  color: #718095;
+  color: #657187;
+  line-height: 1.55;
 }
 .login-card label,
 #twoFactorForm > label {
@@ -46,9 +56,16 @@
 .login-card input,
 #twoFactorForm input {
   padding: 12px;
-  border: 1px solid #e1e6ed;
+  border: 1px solid #ded8cc;
   border-radius: 8px;
+  color: #17233b;
+  background: #fff;
   font: inherit;
+}
+.login-card input:focus,
+#twoFactorForm input:focus {
+  border-color: #a67d3f;
+  outline: 3px solid #e9d9b466;
 }
 .login-card .text-button {
   text-align: center;
@@ -64,11 +81,12 @@
   text-align: right;
 }
 .user-chip span {
+  color: #17233b;
   font-size: 12px;
   font-weight: 800;
 }
 .user-chip small {
-  color: #8490a1;
+  color: #657187;
   font-size: 10px;
 }
 #twoFactorSecret {

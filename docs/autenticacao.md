@@ -33,7 +33,7 @@ No primeiro login, o administrador é obrigado a cadastrar a chave exibida em um
 
 ## Recuperação de senha
 
-Em desenvolvimento, o token temporário é mostrado na interface para permitir testes. Em produção, `APP_ENV=production` impede essa exibição. Antes do lançamento, integre um provedor transacional de e-mail; a resposta pública continua genérica para não revelar se uma conta existe.
+O token temporário nunca é mostrado por padrão. Somente em desenvolvimento local, com `HOST=127.0.0.1` e `EXPOSE_DEVELOPMENT_RESET_TOKEN=true`, ele pode aparecer para testes. Produção rejeita essa opção. Antes do lançamento, integre um provedor transacional de e-mail; a resposta pública continua genérica para não revelar se uma conta existe.
 
 ## Produção
 

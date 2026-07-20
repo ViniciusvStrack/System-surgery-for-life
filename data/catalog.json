@@ -1,32 +1,151 @@
 [
   {
-    "id": "CAM-001",
-    "name": "Camiseta Básica Premium",
-    "description": "Camiseta 100% algodão, confortável e resistente.",
-    "category": "Camisetas",
-    "price": 59.9,
+    "id": "JAL-001",
+    "slug": "jaleco-axis",
+    "name": "Jaleco Axis",
+    "description": "Linhas arquitetônicas, fechamento assimétrico e bolsos funcionais em um jaleco criado para uma presença precisa.",
+    "category": "Jalecos",
+    "price": 589,
     "stock": 20,
-    "keywords": ["camisa", "camiseta", "algodão", "básica"],
-    "variants": ["P", "M", "G", "GG"]
+    "badge": "Assinatura SFL",
+    "image": "/assets/sfl-coat.jpg",
+    "keywords": ["jaleco", "branco", "alfaiataria", "laser", "axis"],
+    "variants": ["PP", "P", "M", "G", "GG"],
+    "colors": [
+      { "name": "Branco óptico", "value": "#f4f2eb" },
+      { "name": "Azul profundo", "value": "#10264f" }
+    ],
+    "fits": ["Essencial", "Acinturado"],
+    "features": [
+      "Painéis cortados a laser",
+      "Toque macio",
+      "Bolsos de acesso rápido"
+    ],
+    "laserCut": true,
+    "personalizable": true
   },
   {
-    "id": "CAL-001",
-    "name": "Calça Jeans Slim",
-    "description": "Jeans azul com elastano e corte slim.",
-    "category": "Calças",
-    "price": 149.9,
-    "stock": 12,
-    "keywords": ["calça", "jeans", "slim"],
-    "variants": ["38", "40", "42", "44"]
+    "id": "JAL-002",
+    "slug": "jaleco-nexo",
+    "name": "Jaleco Nexo",
+    "description": "Uma leitura contemporânea do jaleco clássico, com gola limpa, caimento estruturado e acabamento minimalista.",
+    "category": "Jalecos",
+    "price": 649,
+    "stock": 18,
+    "badge": "Novo",
+    "image": "/assets/sfl-coat.jpg",
+    "keywords": ["jaleco", "nexo", "minimalista", "gola", "laser"],
+    "variants": ["PP", "P", "M", "G", "GG"],
+    "colors": [
+      { "name": "Branco óptico", "value": "#f4f2eb" },
+      { "name": "Areia clínica", "value": "#d8d0c3" }
+    ],
+    "fits": ["Reto", "Acinturado"],
+    "features": [
+      "Modelagem ergonômica",
+      "Corte de precisão",
+      "Três bolsos funcionais"
+    ],
+    "laserCut": true,
+    "personalizable": true
   },
   {
-    "id": "TEN-001",
-    "name": "Tênis Casual Urbano",
-    "description": "Tênis leve para uso diário.",
-    "category": "Calçados",
-    "price": 199.9,
-    "stock": 8,
-    "keywords": ["tênis", "sapato", "casual"],
-    "variants": ["37", "38", "39", "40", "41", "42"]
+    "id": "JAL-003",
+    "slug": "jaleco-vetor",
+    "name": "Jaleco Vetor",
+    "description": "Silhueta leve e direta, com construção unissex e detalhes discretos para uma rotina dinâmica.",
+    "category": "Jalecos",
+    "price": 529,
+    "stock": 21,
+    "badge": "Unissex",
+    "image": "/assets/sfl-coat.jpg",
+    "keywords": ["jaleco", "vetor", "unissex", "leve", "laser"],
+    "variants": ["PP", "P", "M", "G", "GG", "XGG"],
+    "colors": [
+      { "name": "Branco óptico", "value": "#f4f2eb" },
+      { "name": "Grafite", "value": "#313845" }
+    ],
+    "fits": ["Unissex"],
+    "features": [
+      "Construção leve",
+      "Aberturas laterais",
+      "Punhos de ajuste limpo"
+    ],
+    "laserCut": true,
+    "personalizable": true
+  },
+  {
+    "id": "SCR-001",
+    "slug": "scrub-pulse",
+    "name": "Scrub Pulse",
+    "description": "Scrub de linhas precisas com mobilidade planejada, cintura ajustável e bolsos que acompanham o ritmo do plantão.",
+    "category": "Scrubs",
+    "price": 469,
+    "stock": 32,
+    "badge": "Mais escolhido",
+    "image": "/assets/sfl-scrub.jpg",
+    "keywords": ["scrub", "pulse", "azul", "conjunto", "laser"],
+    "variants": ["PP", "P", "M", "G", "GG"],
+    "colors": [
+      { "name": "Azul cobalto", "value": "#1747d1" },
+      { "name": "Azul profundo", "value": "#10264f" },
+      { "name": "Grafite", "value": "#313845" }
+    ],
+    "fits": ["Reto", "Acinturado"],
+    "features": [
+      "Tecido flexível",
+      "Cintura ajustável",
+      "Cinco bolsos funcionais"
+    ],
+    "laserCut": true,
+    "personalizable": true
+  },
+  {
+    "id": "SCR-002",
+    "slug": "scrub-orbit",
+    "name": "Scrub Orbit",
+    "description": "Equilíbrio entre estrutura e fluidez, com recortes ergonômicos e visual monocromático de alta presença.",
+    "category": "Scrubs",
+    "price": 499,
+    "stock": 27,
+    "badge": "Edição tecnológica",
+    "image": "/assets/sfl-scrub.jpg",
+    "keywords": ["scrub", "orbit", "ergonômico", "conjunto", "laser"],
+    "variants": ["PP", "P", "M", "G", "GG"],
+    "colors": [
+      { "name": "Azul profundo", "value": "#10264f" },
+      { "name": "Verde mineral", "value": "#40665d" },
+      { "name": "Vinho", "value": "#673241" }
+    ],
+    "fits": ["Essencial", "Acinturado"],
+    "features": [
+      "Recortes ergonômicos",
+      "Cuidado descomplicado",
+      "Acabamento de toque suave"
+    ],
+    "laserCut": true,
+    "personalizable": true
+  },
+  {
+    "id": "SCR-003",
+    "slug": "scrub-core",
+    "name": "Scrub Core",
+    "description": "O essencial elevado: modelagem descomplicada, detalhes funcionais e conforto para jornadas prolongadas.",
+    "category": "Scrubs",
+    "price": 429,
+    "stock": 35,
+    "badge": "Essencial",
+    "image": "/assets/sfl-scrub.jpg",
+    "keywords": ["scrub", "core", "essencial", "conforto", "conjunto"],
+    "variants": ["PP", "P", "M", "G", "GG", "XGG"],
+    "colors": [
+      { "name": "Azul cobalto", "value": "#1747d1" },
+      { "name": "Grafite", "value": "#313845" },
+      { "name": "Areia", "value": "#b9ad9d" }
+    ],
+    "fits": ["Unissex"],
+    "features": ["Caimento confortável", "Cós ajustável", "Bolsos amplos"],
+    "laserCut": true,
+    "personalizable": true
   }
 ]

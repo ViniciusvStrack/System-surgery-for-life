@@ -13,6 +13,6 @@ test("chatbot não quebra com 500 entradas aleatórias", async () => {
 });
 
 test("observação enorme é limitada", async () => {
-  const sessions = new MemoryStore({ user: { stage: "idle", cart: [{ productId: "CAM-001", name: "Camiseta", variant: "M", price: 1, qty: 1 }], favorites: [] } }); const bot = new StoreBot({ catalog: new Catalog(path.resolve("data/catalog.json")), sessions, orders: new MemoryStore([]), faqFile: path.resolve("data/faqs.json"), config: { storeName: "Teste", deliveryFee: 0, freeShippingFrom: 0 } });
+  const sessions = new MemoryStore({ user: { stage: "idle", cart: [{ productId: "JAL-001", name: "Jaleco Axis", variant: "M", price: 1, qty: 1 }], favorites: [] } }); const bot = new StoreBot({ catalog: new Catalog(path.resolve("data/catalog.json")), sessions, orders: new MemoryStore([]), faqFile: path.resolve("data/faqs.json"), config: { storeName: "Teste", deliveryFee: 0, freeShippingFrom: 0 } });
   await bot.handle("user", `observação ${"x".repeat(10000)}`); assert.equal(sessions.read().user.orderNote.length, 300);
 });

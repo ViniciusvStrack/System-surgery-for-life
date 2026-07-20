@@ -12,9 +12,9 @@ function setup() {
 
 test("fluxo completo cria pedido sem coletar pagamento", async () => {
   const { bot, orders } = setup(); const user = "5511000000000";
-  for (const input of ["adicionar CAM-001", "M", "2", "finalizar", "Ana Maria", "entrega", "Rua A, 10, Centro, São Paulo, 01000-000"]) await bot.handle(user, input);
+  for (const input of ["adicionar JAL-001", "M", "2", "finalizar", "Ana Maria", "entrega", "Rua A, 10, Centro, São Paulo, 01000-000"]) await bot.handle(user, input);
   const result = await bot.handle(user, "confirmar");
-  assert.equal(result.order.total, 129.8);
+  assert.equal(result.order.total, 1178);
   assert.equal(orders.read().length, 1);
   assert.match(result.messages[0], /não solicita dados de cartão/i);
 });
@@ -47,10 +47,10 @@ test("responde horário de atendimento escrito naturalmente", async () => {
 
 test("permite escolher produto por número sem copiar código", async () => {
   const { bot } = setup();
-  const list = await bot.handle("5", "camiseta");
-  assert.match(list.messages[0], /1\. Camiseta Básica Premium/);
+  const list = await bot.handle("5", "jaleco axis");
+  assert.match(list.messages[0], /1\. Jaleco Axis/);
   assert.match(list.messages[0], /número do produto/);
   const selected = await bot.handle("5", "1");
   assert.match(selected.messages[0], /Qual opção deseja/);
-  assert.match(selected.messages[0], /P \| M \| G \| GG/);
+  assert.match(selected.messages[0], /PP \| P \| M \| G \| GG/);
 });

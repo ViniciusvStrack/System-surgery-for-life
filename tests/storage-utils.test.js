@@ -13,6 +13,7 @@ test("JsonStore persiste dados e cria diretórios", () => {
   store.write([{ ok: true }]);
   assert.deepEqual(store.read(), [{ ok: true }]);
   assert.equal(fs.existsSync(`${file}.tmp`), false);
+  if (process.platform !== "win32") assert.equal(fs.statSync(file).mode & 0o777, 0o600);
 });
 
 test("JsonStore recupera fallback quando JSON está corrompido", () => {

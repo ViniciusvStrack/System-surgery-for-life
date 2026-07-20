@@ -1,4 +1,4 @@
-# Integração futura com o WhatsApp
+# Integração oficial com o WhatsApp
 
 Este projeto usa a API oficial WhatsApp Cloud API da Meta. Evite automações que imitam o WhatsApp Web: elas não são apropriadas para uma operação empresarial estável.
 

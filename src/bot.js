@@ -1,5 +1,7 @@
 import fs from "node:fs";
+import crypto from "node:crypto";
 import { makeOrderId, money, normalize } from "./utils.js";
+import { hashPrincipal } from "./commerce.js";
 
 const MENU = "*Menu da loja*\n\n1. Ver catálogo\n2. Buscar produto\n3. Ver carrinho\n4. Acompanhar pedido\n5. Dúvidas frequentes\n6. Falar com atendente\n\nVocê também pode escrever o nome do produto que procura.";
 
@@ -19,10 +21,11 @@ function conversationalIntent(text) {
 }
 
 export class StoreBot {
-  constructor({ catalog, sessions, orders, faqFile, config }) {
+  constructor({ catalog, sessions, orders, commerce = null, faqFile, config }) {
     this.catalog = catalog;
     this.sessions = sessions;
     this.orders = orders;
+    this.commerce = commerce;
     this.faqs = JSON.parse(fs.readFileSync(faqFile, "utf8"));
     this.config = config;
   }
@@ -61,6 +64,25 @@ export class StoreBot {
     const { all, value: s } = this.session(user);
     const finish = (messages, extra = {}) => { this.save(user, all, s); return { messages: Array.isArray(messages) ? messages : [messages], ...extra }; };
 
+    const webOrderCode = text.match(/\bPED-\d{8}-[A-Z0-9]{6,20}\b/i)?.[0];
+    const webHandoffToken = text.match(/\bSFLH_([A-Za-z0-9_-]{43})\b/)?.[1];
+    if (this.commerce && webOrderCode && webHandoffToken) {
+      try {
+        const claimed = this.commerce.claimWebOrder(webOrderCode, webHandoffToken, user);
+        s.lastOrderId = claimed.order.code;
+        s.stage = "human";
+        return finish(
+          `Reserva *${claimed.order.code}* localizada e vinculada a este WhatsApp. ✅\n\nNossa equipe recebeu o aviso e continuará com prazo, entrega e pagamento.`,
+          { handoff: !claimed.replayed },
+        );
+      } catch (error) {
+        const message = error.code === "RESERVATION_EXPIRED"
+          ? "Esta reserva expirou. Volte ao site, atualize a disponibilidade e gere um novo pedido."
+          : "Não consegui validar este código de conexão. Abra novamente o WhatsApp pelo botão do pedido no site.";
+        return finish(message);
+      }
+    }
+
     // Conversa informal é interpretada somente fora de formulários do pedido.
     // Assim, um endereço como "Rua Boa Vista" não é confundido com uma saudação.
     if (["idle", "search"].includes(s.stage)) {
@@ -84,7 +106,7 @@ export class StoreBot {
       s.stage = "idle";
       return finish(`Olá, ${profileName}! Eu sou o assistente da *${this.config.storeName}*. 🛍️\n\n${MENU}`);
     }
-    if (["cancelar", "cancelar pedido"].includes(n)) { s.stage = "idle"; s.pending = null; return finish("Operação cancelada. Seu carrinho foi mantido.\n\n" + MENU); }
+    if (["cancelar", "cancelar pedido"].includes(n)) { s.stage = "idle"; s.pending = null; s.checkout = null; s.checkoutKey = null; return finish("Operação cancelada. Seu carrinho foi mantido.\n\n" + MENU); }
     if (["atendente", "humano", "falar com atendente"].includes(n) || (n === "6" && s.stage === "idle")) {
       s.stage = "human";
       return finish("Certo! Encaminhei sua conversa para nossa equipe. Um atendente responderá assim que possível.", { handoff: true });
@@ -94,7 +116,7 @@ export class StoreBot {
 
     if (["limpar carrinho", "esvaziar carrinho"].includes(n)) {
       if (!s.cart.length) return finish("Seu carrinho já está vazio.");
-      s.cart = []; s.pending = null; s.checkout = null; s.orderNote = null; s.stage = "idle";
+      s.cart = []; s.pending = null; s.checkout = null; s.checkoutKey = null; s.orderNote = null; s.stage = "idle";
       return finish("Carrinho esvaziado com sucesso. Digite *catálogo* para começar novamente.");
     }
 
@@ -195,12 +217,13 @@ export class StoreBot {
 
     if (["finalizar", "fechar pedido", "checkout"].includes(n)) {
       if (!s.cart.length) return finish("Seu carrinho está vazio. Digite *catálogo* para começar.");
+      s.checkoutKey = crypto.randomUUID();
       s.stage = "checkout_name";
       return finish(`${this.cartSummary(s, false)}\n\nPara iniciar o pedido, informe seu *nome completo*.`);
     }
     if (s.stage === "checkout_name") {
       if (text.length < 3) return finish("Por favor, informe seu nome completo.");
-      s.checkout = { name: text }; s.stage = "checkout_delivery";
+      s.checkout = { name: text, idempotencyKey: s.checkoutKey || crypto.randomUUID() }; s.stage = "checkout_delivery";
       return finish("Você prefere *entrega* ou *retirada*?");
     }
     if (s.stage === "checkout_delivery") {
@@ -216,19 +239,19 @@ export class StoreBot {
       return finish(this.confirmation(s));
     }
     if (s.stage === "checkout_confirm") {
-      if (["nao", "não", "corrigir"].includes(n)) { s.stage = "idle"; return finish("Pedido não enviado. Seu carrinho foi mantido. Digite *finalizar* para tentar novamente."); }
+      if (["nao", "não", "corrigir"].includes(n)) { s.stage = "idle"; s.checkoutKey = null; return finish("Pedido não enviado. Seu carrinho foi mantido. Digite *finalizar* para tentar novamente."); }
       if (!["sim", "confirmar", "confirmo"].includes(n)) return finish("Responda *confirmar* para enviar o pedido ou *corrigir* para voltar.");
       let order;
       try { order = this.createOrder(user, s); }
       catch (error) { s.stage = "idle"; return finish(`Não consegui reservar o estoque: ${error.message}\n\nSeu carrinho foi mantido. Escolha outra opção ou digite *atendente*.`); }
-      s.cart = []; s.checkout = null; s.orderNote = null; s.stage = "idle"; s.lastOrderId = order.id;
+      s.cart = []; s.checkout = null; s.checkoutKey = null; s.orderNote = null; s.stage = "idle"; s.lastOrderId = order.id;
       return finish(`Pedido *${order.id}* registrado com sucesso! ✅\n\nNossa equipe continuará o atendimento pelo WhatsApp para confirmar disponibilidade, prazo e pagamento. O bot não solicita dados de cartão.`, { order });
     }
 
     const statusMatch = n.match(/ped-\d{8}-[a-z0-9]{6}/i);
     if (["acompanhar pedido", "status"].includes(n) || (n === "4" && s.stage === "idle")) return finish("Digite o código do pedido, por exemplo: PED-20260101-ABC123.");
     if (statusMatch) {
-      const order = this.orders.read().find((x) => normalize(x.id) === statusMatch[0]);
+      const order = this.commerce?.findOrderByCode(statusMatch[0]) || this.orders.read().find((x) => normalize(x.id) === statusMatch[0]);
       return finish(order && order.user === user ? `Pedido *${order.id}*: ${order.status}.` : "Não encontrei esse pedido vinculado ao seu WhatsApp.");
     }
 
@@ -255,6 +278,31 @@ export class StoreBot {
   }
 
   createOrder(user, s) {
+    if (this.commerce) {
+      const result = this.commerce.placeOrder({
+        principal: hashPrincipal("whatsapp", user),
+        idempotencyKey: `bot-${s.checkout.idempotencyKey || crypto.randomUUID()}`,
+        payload: {
+          items: s.cart.map((item) => ({
+            productId: item.productId,
+            size: item.variant,
+            quantity: item.qty,
+          })),
+          note: s.orderNote || "",
+        },
+        source: "whatsapp",
+        requireWhatsAppLink: false,
+        trusted: {
+          customer: s.checkout.name,
+          user,
+          delivery: s.checkout.delivery,
+          address: s.checkout.address,
+          note: s.orderNote || "",
+          deliveryFeeCents: Math.round(Number(s.checkout.deliveryFee || 0) * 100),
+        },
+      });
+      return result.order;
+    }
     const subtotal = s.cart.reduce((sum, x) => sum + x.price * x.qty, 0);
     const order = { id: makeOrderId(), user, customer: s.checkout.name, items: structuredClone(s.cart), delivery: s.checkout.delivery, address: s.checkout.address, note: s.orderNote || "", subtotal, deliveryFee: s.checkout.deliveryFee, total: subtotal + s.checkout.deliveryFee, status: "Aguardando confirmação da loja", createdAt: new Date().toISOString() };
     this.catalog.reserveOrder(order);
