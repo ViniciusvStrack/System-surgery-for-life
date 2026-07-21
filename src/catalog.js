@@ -21,9 +21,8 @@ export class Catalog {
     return product ? structuredClone(product) : null;
   }
 
-  get products() {
-    const stockProducts = this.inventory?.snapshot().products ?? [];
-    if (!stockProducts.length) return structuredClone(this.fallbackProducts);
+  #productsFromRows(stockProducts, fallbackWhenEmpty = true) {
+    if (!stockProducts.length) return fallbackWhenEmpty ? structuredClone(this.fallbackProducts) : [];
 
     const groups = new Map();
     for (const row of stockProducts) {
@@ -80,7 +79,17 @@ export class Catalog {
     return [...groups.values()].map((product) => ({ ...product, variants: unique(product.variants) }));
   }
 
+  get products() {
+    const stockProducts = this.inventory?.snapshot().products ?? [];
+    return this.#productsFromRows(stockProducts);
+  }
+
   available() { return this.products.filter((product) => product.stock > 0); }
+  availableReadOnly() {
+    if (!this.inventory) return this.available();
+    if (typeof this.inventory.readOnlyProducts !== "function") throw new Error("O inventário não oferece consulta somente leitura.");
+    return this.#productsFromRows(this.inventory.readOnlyProducts(), false).filter((product) => product.stock > 0);
+  }
   byId(id) { return this.products.find((product) => normalize(product.id) === normalize(id)); }
   categories() { return [...new Set(this.available().map((product) => product.category))].sort(); }
   stockFor(product, variant) { return product.variantStock ? Number(product.variantStock[variant] || 0) : product.stock; }

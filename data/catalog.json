@@ -9,6 +9,11 @@
     "stock": 20,
     "badge": "Assinatura SFL",
     "image": "/assets/sfl-coat.jpg",
+    "images": [
+      "/assets/sfl-coat-rear.jpg",
+      "/assets/sfl-fabric-white.jpg",
+      "/assets/sfl-fabric.jpg"
+    ],
     "keywords": ["jaleco", "branco", "alfaiataria", "laser", "axis"],
     "variants": ["PP", "P", "M", "G", "GG"],
     "colors": [
@@ -33,7 +38,12 @@
     "price": 649,
     "stock": 18,
     "badge": "Novo",
-    "image": "/assets/sfl-coat.jpg",
+    "image": "/assets/sfl-coat-rear.jpg",
+    "images": [
+      "/assets/sfl-coat.jpg",
+      "/assets/sfl-fabric-white.jpg",
+      "/assets/sfl-fabric.jpg"
+    ],
     "keywords": ["jaleco", "nexo", "minimalista", "gola", "laser"],
     "variants": ["PP", "P", "M", "G", "GG"],
     "colors": [
@@ -59,6 +69,11 @@
     "stock": 21,
     "badge": "Unissex",
     "image": "/assets/sfl-coat.jpg",
+    "images": [
+      "/assets/sfl-coat-rear.jpg",
+      "/assets/sfl-fabric-white.jpg",
+      "/assets/sfl-fabric.jpg"
+    ],
     "keywords": ["jaleco", "vetor", "unissex", "leve", "laser"],
     "variants": ["PP", "P", "M", "G", "GG", "XGG"],
     "colors": [
@@ -84,6 +99,11 @@
     "stock": 32,
     "badge": "Mais escolhido",
     "image": "/assets/sfl-scrub.jpg",
+    "images": [
+      "/assets/sfl-scrub-angle.jpg",
+      "/assets/sfl-hero.jpg",
+      "/assets/sfl-fabric.jpg"
+    ],
     "keywords": ["scrub", "pulse", "azul", "conjunto", "laser"],
     "variants": ["PP", "P", "M", "G", "GG"],
     "colors": [
@@ -109,7 +129,12 @@
     "price": 499,
     "stock": 27,
     "badge": "Edição tecnológica",
-    "image": "/assets/sfl-scrub.jpg",
+    "image": "/assets/sfl-scrub-angle.jpg",
+    "images": [
+      "/assets/sfl-scrub.jpg",
+      "/assets/sfl-hero.jpg",
+      "/assets/sfl-fabric.jpg"
+    ],
     "keywords": ["scrub", "orbit", "ergonômico", "conjunto", "laser"],
     "variants": ["PP", "P", "M", "G", "GG"],
     "colors": [
@@ -135,7 +160,12 @@
     "price": 429,
     "stock": 35,
     "badge": "Essencial",
-    "image": "/assets/sfl-scrub.jpg",
+    "image": "/assets/sfl-hero.jpg",
+    "images": [
+      "/assets/sfl-scrub-angle.jpg",
+      "/assets/sfl-scrub.jpg",
+      "/assets/sfl-fabric.jpg"
+    ],
     "keywords": ["scrub", "core", "essencial", "conforto", "conjunto"],
     "variants": ["PP", "P", "M", "G", "GG", "XGG"],
     "colors": [

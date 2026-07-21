@@ -1,7 +1,16 @@
 const CART_STORAGE_KEY = "sfl-store-cart-v1";
 const CHECKOUT_INTENT_KEY = "sfl-store-checkout-intent-v1";
 const LAST_ORDER_KEY = "sfl-store-last-order-v1";
+const ASSISTANT_STORAGE_KEY = "sfl-store-assistant-v1";
 const CART_TTL_MS = 24 * 60 * 60 * 1000;
+const ASSISTANT_TTL_MS = 30 * 60 * 1000;
+const ASSISTANT_MAX_MESSAGES = 16;
+const ASSISTANT_MAX_MESSAGE_LENGTH = 500;
+const ASSISTANT_DEFAULT_SUGGESTIONS = [
+  "Qual modelo combina com plantões longos?",
+  "Como escolher meu tamanho?",
+  "Posso personalizar com meu nome?",
+];
 const CATALOG_PAGE_SIZE = 6;
 const MAX_CART_LINES = 20;
 const MAX_ORDER_UNITS = 50;
@@ -27,9 +36,8 @@ const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
 });
-const reduceMotion = window.matchMedia(
-  "(prefers-reduced-motion: reduce)",
-).matches;
+const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+let reduceMotion = motionPreference.matches;
 let authRefreshSequence = 0;
 
 const dom = {
@@ -71,6 +79,29 @@ const dom = {
   cartCloseActions: [...document.querySelectorAll("[data-close-cart]")],
   cartCheckout: document.querySelector("[data-cart-checkout]"),
   cartValidation: document.querySelector("[data-cart-validation]"),
+  productViewer: document.querySelector("[data-product-viewer]"),
+  productViewerClose: document.querySelector("[data-close-product-viewer]"),
+  productViewerTitle: document.querySelector("[data-product-viewer-title]"),
+  productViewerDescription: document.querySelector(
+    "[data-product-viewer-description]",
+  ),
+  productViewerCode: document.querySelector("[data-product-viewer-code]"),
+  productViewerStage: document.querySelector("[data-product-viewer-stage]"),
+  productViewerImage: document.querySelector("[data-product-viewer-image]"),
+  productViewerThumbnails: document.querySelector(
+    "[data-product-viewer-thumbnails]",
+  ),
+  productViewerSpecs: document.querySelector("[data-product-viewer-specs]"),
+  productViewerPrice: document.querySelector("[data-product-viewer-price]"),
+  productViewerZoomOut: document.querySelector(
+    "[data-product-viewer-zoom-out]",
+  ),
+  productViewerZoomReset: document.querySelector(
+    "[data-product-viewer-zoom-reset]",
+  ),
+  productViewerZoomIn: document.querySelector("[data-product-viewer-zoom-in]"),
+  productViewerEdit: document.querySelector("[data-product-viewer-edit]"),
+  productViewerStatus: document.querySelector("[data-product-viewer-status]"),
   checkoutDialog: document.querySelector("[data-checkout-dialog]"),
   checkoutClose: document.querySelector("[data-close-checkout]"),
   checkoutReview: document.querySelector("[data-checkout-review]"),
@@ -104,6 +135,19 @@ const dom = {
   careGuideActions: [...document.querySelectorAll("[data-open-care-guide]")],
   infoCloseActions: [...document.querySelectorAll("[data-close-info]")],
   whatsappActions: [...document.querySelectorAll("[data-whatsapp-contact]")],
+  motionLab: document.querySelector("[data-motion-lab]"),
+  motionToggle: document.querySelector("[data-motion-toggle]"),
+  motionToggleLabel: document.querySelector("[data-motion-toggle-label]"),
+  assistantLauncher: document.querySelector("[data-assistant-launcher]"),
+  assistantPanel: document.querySelector("[data-assistant-panel]"),
+  assistantClose: document.querySelector("[data-assistant-close]"),
+  assistantMessages: document.querySelector("[data-assistant-messages]"),
+  assistantSuggestions: document.querySelector("[data-assistant-suggestions]"),
+  assistantForm: document.querySelector("[data-assistant-form]"),
+  assistantInput: document.querySelector("[data-assistant-input]"),
+  assistantSend: document.querySelector("[data-assistant-send]"),
+  assistantPresence: document.querySelector("[data-assistant-presence]"),
+  assistantStatus: document.querySelector("[data-assistant-status]"),
 };
 
 const state = {
@@ -130,6 +174,22 @@ const state = {
     whatsappUrl: "",
     idempotencyKey: "",
     fingerprint: "",
+  },
+  viewer: {
+    itemKey: "",
+    images: [],
+    imageIndex: 0,
+    zoomIndex: 0,
+  },
+  assistant: {
+    open: false,
+    loading: false,
+    conversationId: "",
+    messages: [],
+    suggestions: [...ASSISTANT_DEFAULT_SUGGESTIONS],
+    request: null,
+    lastFailedMessage: "",
+    retryAfter: 0,
   },
 };
 
@@ -228,7 +288,7 @@ function applyColorTone(node, value) {
   node.classList.add("color-tone", colorTone(value));
 }
 
-function safeImage(value, category) {
+function safeImagePath(value) {
   const candidate = cleanText(value, 160);
   if (
     /^\/assets\/[a-z0-9][a-z0-9._/-]*\.(?:png|jpe?g|webp|avif)$/i.test(
@@ -237,9 +297,36 @@ function safeImage(value, category) {
     !candidate.includes("..")
   )
     return candidate;
+  return "";
+}
+
+function defaultProductImage(category) {
   return category === "scrub"
     ? "/assets/sfl-scrub.jpg"
     : "/assets/sfl-coat.jpg";
+}
+
+function safeImage(value, category) {
+  return safeImagePath(value) || defaultProductImage(category);
+}
+
+function productImageSource(value) {
+  if (typeof value === "string") return value;
+  if (!value || typeof value !== "object") return "";
+  return value.src || value.url || value.image || "";
+}
+
+function normalizeProductImages(source, category, primaryImage) {
+  const candidates = [primaryImage];
+  [source?.images, source?.gallery, source?.media].forEach((collection) => {
+    if (Array.isArray(collection)) candidates.push(...collection.slice(0, 10));
+  });
+  const images = [];
+  candidates.forEach((candidate) => {
+    const safe = safeImagePath(productImageSource(candidate));
+    if (safe && !images.includes(safe)) images.push(safe);
+  });
+  return images.length ? images : [defaultProductImage(category)];
 }
 
 function uniqueStrings(values, maxItems = 12, maxLength = 50) {
@@ -353,6 +440,7 @@ function normalizeProduct(raw, index) {
     variantIds[entry.size] = entry.id;
     variantStock[entry.size] = entry.stock;
   });
+  const images = normalizeProductImages(source, category, source.image);
   return {
     id,
     slug: cleanText(source.slug, 80),
@@ -365,7 +453,8 @@ function normalizeProduct(raw, index) {
     price: safeNumber(source.price, 0, 100_000),
     stock: Math.floor(safeNumber(source.stock, 0, 100_000)),
     badge: cleanText(source.badge, 28),
-    image: safeImage(source.image, category),
+    image: images[0],
+    images,
     colors: colors.length ? colors : defaultColors,
     fits: fits.length
       ? fits
@@ -387,7 +476,7 @@ function normalizeProduct(raw, index) {
 
 function safeJson(response) {
   const contentType = response.headers.get("content-type") || "";
-  if (!contentType.includes("application/json"))
+  if (!contentType.toLowerCase().includes("json"))
     throw new Error("Resposta inesperada do servidor.");
   return response.json();
 }
@@ -404,6 +493,634 @@ function safeWhatsappUrl(value) {
   } catch {
     return "";
   }
+}
+
+function assistantText(value, maxLength = 1200) {
+  return cleanMultiline(value, maxLength)
+    .replace(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/gi, "[dado removido]")
+    .replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, "[dado removido]")
+    .replace(
+      /(?:\+?55[\s.-]*)?\(?\d{2}\)?[\s.-]*9?\d{4}[\s.-]*\d{4}/g,
+      "[dado removido]",
+    )
+    .trim();
+}
+
+function hasLikelyPersonalData(value) {
+  const text = String(value || "");
+  return (
+    /[\w.+-]+@[\w.-]+\.[a-z]{2,}/i.test(text) ||
+    /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/.test(text) ||
+    /(?:\+?55[\s.-]*)?\(?\d{2}\)?[\s.-]*9?\d{4}[\s.-]*\d{4}/.test(text)
+  );
+}
+
+function createAssistantConversationId() {
+  const secureRandom = globalThis.crypto;
+  if (typeof secureRandom?.randomUUID === "function")
+    return secureRandom.randomUUID();
+  const bytes = new Uint32Array(4);
+  if (typeof secureRandom?.getRandomValues !== "function")
+    return `sfl-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+  secureRandom.getRandomValues(bytes);
+  return [...bytes].map((part) => part.toString(16).padStart(8, "0")).join("-");
+}
+
+function readAssistantSession() {
+  try {
+    const stored = JSON.parse(
+      sessionStorage.getItem(ASSISTANT_STORAGE_KEY) || "null",
+    );
+    if (
+      !stored ||
+      !Number.isFinite(Number(stored.expiresAt)) ||
+      Number(stored.expiresAt) <= Date.now()
+    ) {
+      sessionStorage.removeItem(ASSISTANT_STORAGE_KEY);
+      return null;
+    }
+    const conversationId = /^[a-z0-9-]{8,80}$/i.test(stored.conversationId)
+      ? stored.conversationId
+      : createAssistantConversationId();
+    return { conversationId, messages: [] };
+  } catch {
+    try {
+      sessionStorage.removeItem(ASSISTANT_STORAGE_KEY);
+    } catch {
+      // Storage may be unavailable in hardened privacy modes.
+    }
+    return null;
+  }
+}
+
+function saveAssistantSession() {
+  try {
+    sessionStorage.setItem(
+      ASSISTANT_STORAGE_KEY,
+      JSON.stringify({
+        conversationId: state.assistant.conversationId,
+        expiresAt: Date.now() + ASSISTANT_TTL_MS,
+      }),
+    );
+  } catch {
+    // The assistant keeps working without persistence when storage is blocked.
+  }
+}
+
+function addAssistantHistory(role, content) {
+  const safeContent = assistantText(content, 1200);
+  if (!safeContent) return;
+  state.assistant.messages.push({
+    role: role === "user" ? "user" : "assistant",
+    content: safeContent,
+  });
+  state.assistant.messages = state.assistant.messages.slice(
+    -ASSISTANT_MAX_MESSAGES,
+  );
+  saveAssistantSession();
+}
+
+function createAssistantMessage(role, content, options = {}) {
+  const message = element("article", {
+    className: `assistant-message is-${role}${options.error ? " is-error" : ""}${options.recoverable ? " is-recoverable" : ""}`,
+  });
+  message.append(
+    element("span", {
+      className: "assistant-message-label",
+      text: role === "user" ? "Você" : "SFL AI",
+    }),
+  );
+  const bubble = element("div", { className: "assistant-message-bubble" });
+  if (options.typing) {
+    bubble.append(
+      element(
+        "span",
+        {
+          className: "assistant-typing",
+          attrs: { "aria-label": "O assistente está preparando a resposta" },
+        },
+        [element("i"), element("i"), element("i")],
+      ),
+    );
+    message.dataset.assistantTyping = "true";
+  } else {
+    bubble.textContent = assistantText(content, 1200);
+  }
+  message.append(bubble);
+  if (Array.isArray(options.products) && options.products.length) {
+    message.append(createAssistantProducts(options.products));
+  }
+  const actions = [
+    ...(Array.isArray(options.actions) ? options.actions : []),
+    ...(options.action ? [options.action] : []),
+  ]
+    .slice(0, 3)
+    .map(createAssistantAction)
+    .filter(Boolean);
+  if (actions.length) {
+    message.append(
+      element("div", { className: "assistant-action-group" }, actions),
+    );
+  }
+  return message;
+}
+
+function createAssistantProducts(products) {
+  const list = element("div", {
+    className: "assistant-products",
+    attrs: { "aria-label": "Produtos sugeridos" },
+  });
+  products.slice(0, 3).forEach((entry) => {
+    const source = entry && typeof entry === "object" ? entry : {};
+    const id = cleanText(source.id, 64);
+    const catalogProduct = state.catalog.find((product) => product.id === id);
+    const category = inferCategory(source);
+    const name =
+      catalogProduct?.name || cleanText(source.name, 100) || "Peça SFL";
+    const price = catalogProduct?.price ?? safeNumber(source.price, 0, 100_000);
+    const stock = catalogProduct?.stock ?? safeNumber(source.stock, 0, 100_000);
+    const image = catalogProduct?.image || safeImage(source.image, category);
+    const card = element("article", { className: "assistant-product" });
+    const productImage = element("img", {
+      attrs: {
+        src: image,
+        alt: "",
+        loading: "lazy",
+        decoding: "async",
+        width: "55",
+        height: "64",
+      },
+    });
+    const details = element("div", {}, [
+      element("strong", { text: name }),
+      element("small", {
+        text:
+          stock > 0
+            ? price > 0
+              ? money.format(price)
+              : "Disponível para personalização"
+            : "Indisponível no momento",
+      }),
+    ]);
+    const choose = element("button", {
+      type: "button",
+      text: stock > 0 ? "Ver" : "Indisponível",
+      attrs: {
+        "aria-label": `Personalizar ${name}`,
+        disabled: !catalogProduct || stock <= 0 ? "" : undefined,
+      },
+    });
+    choose.addEventListener("click", () => {
+      const currentProduct = state.catalog.find((product) => product.id === id);
+      if (!currentProduct || currentProduct.stock <= 0) return;
+      closeAssistant(false);
+      openConfigurator(currentProduct);
+    });
+    card.append(productImage, details, choose);
+    list.append(card);
+  });
+  return list;
+}
+
+function createAssistantAction(rawAction) {
+  if (!rawAction || typeof rawAction !== "object") return null;
+  const type = cleanText(rawAction.type, 24);
+  if (!["whatsapp", "product", "size-guide", "retry"].includes(type))
+    return null;
+  const labels = {
+    whatsapp: "Continuar no WhatsApp",
+    product: "Personalizar produto",
+    "size-guide": "Abrir guia de tamanhos",
+    retry: "Tentar novamente",
+  };
+  const button = element("button", {
+    className: `assistant-action is-${type}`,
+    type: "button",
+    text: cleanText(rawAction.label, 50) || labels[type],
+  });
+  button.addEventListener("click", () => {
+    if (type === "retry") {
+      const retryMessage =
+        assistantText(rawAction.message, ASSISTANT_MAX_MESSAGE_LENGTH) ||
+        state.assistant.lastFailedMessage;
+      const waitMilliseconds = state.assistant.retryAfter - Date.now();
+      if (waitMilliseconds > 0) {
+        const waitSeconds = Math.max(1, Math.ceil(waitMilliseconds / 1000));
+        showToast(
+          `Aguarde ${waitSeconds} segundo${waitSeconds === 1 ? "" : "s"} antes de tentar novamente.`,
+        );
+        return;
+      }
+      if (retryMessage) sendAssistantMessage(retryMessage, { retry: true });
+      return;
+    }
+    if (type === "size-guide") {
+      closeAssistant(false);
+      openDialog(dom.sizeGuide);
+      return;
+    }
+    if (type === "product") {
+      const productId = cleanText(rawAction.productId, 64);
+      const product = state.catalog.find((entry) => entry.id === productId);
+      if (product?.stock > 0) {
+        closeAssistant(false);
+        openConfigurator(product);
+      } else {
+        showToast("Este produto não está disponível no catálogo agora.");
+      }
+      return;
+    }
+    const whatsappUrl =
+      safeWhatsappUrl(rawAction.url) ||
+      (state.storeConfig.whatsappAvailable
+        ? state.storeConfig.whatsappUrl
+        : "");
+    if (whatsappUrl) {
+      window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    } else {
+      showToast("O WhatsApp está temporariamente indisponível.");
+    }
+  });
+  return button;
+}
+
+function assistantFallback(message) {
+  const key = searchKey(message);
+  if (/tamanho|medida|veste|caimento|pp|\bgg\b/.test(key)) {
+    return {
+      reply:
+        "Para escolher com segurança, compare uma peça que veste bem em você e consulte o guia de tamanhos. O caimento também muda entre modelagens; se ficar entre dois tamanhos, confirme as medidas antes de reservar.",
+      action: { type: "size-guide", label: "Consultar tamanhos" },
+    };
+  }
+  if (/tecido|laser|tecnolog|qualidade|respira|confort|material/.test(key)) {
+    return {
+      reply:
+        "As peças SFL combinam modelagem funcional, acabamento de precisão e construção pensada para rotinas profissionais. O corte a laser favorece consistência e limpeza nos detalhes; composição e características específicas aparecem em cada modelo.",
+    };
+  }
+  if (/personal|bordad|nome|profiss|logo/.test(key)) {
+    return {
+      reply:
+        "A personalização com nome e profissão é opcional e pode ser revisada na prévia antes de entrar na sacola. Para logotipos ou projetos de equipe, o atendimento humano confirma viabilidade e acabamento.",
+    };
+  }
+  if (/lav|cuidado|conserv|passar|sec/.test(key)) {
+    return {
+      reply:
+        "Siga sempre a etiqueta interna da peça. Como cuidado geral, lave com cores semelhantes, evite produtos agressivos e preserve bordados e acabamentos do atrito excessivo.",
+    };
+  }
+  if (/preco|valor|estoque|dispon|produto|jaleco|scrub|modelo/.test(key)) {
+    const availableProducts = state.catalog
+      .filter((product) => product.stock > 0)
+      .slice(0, 3);
+    return {
+      reply:
+        "Preços e disponibilidade são consultados diretamente no catálogo conectado. A reserva valida novamente o tamanho escolhido para evitar prometer uma peça sem estoque.",
+      products: availableProducts,
+    };
+  }
+  return {
+    reply:
+      "Enquanto restabeleço a resposta inteligente, você pode consultar produtos, tamanhos, personalização e cuidados pelas opções do site. Para uma dúvida muito específica sobre seu pedido, nossa equipe continua disponível.",
+  };
+}
+
+function assistantRetryDelay(response) {
+  const raw = cleanText(response?.headers?.get("retry-after"), 40);
+  if (!raw) return 30;
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds)) return Math.max(1, Math.min(300, seconds));
+  const date = Date.parse(raw);
+  if (!Number.isFinite(date)) return 30;
+  return Math.max(1, Math.min(300, Math.ceil((date - Date.now()) / 1000)));
+}
+
+function assistantResponseError(response, data) {
+  const source =
+    data?.error && typeof data.error === "object" ? data.error : data || {};
+  const error = new Error("assistant-unavailable");
+  error.status = response.status;
+  error.code = cleanText(source.code || data?.code, 50);
+  error.retryAfter =
+    response.status === 429 ? assistantRetryDelay(response) : 0;
+  return error;
+}
+
+function appendAssistantMessage(role, content, options = {}) {
+  const message = createAssistantMessage(role, content, options);
+  dom.assistantMessages.append(message);
+  window.requestAnimationFrame(() => {
+    dom.assistantMessages.scrollTop = dom.assistantMessages.scrollHeight;
+  });
+  return message;
+}
+
+function renderAssistantHistory() {
+  dom.assistantMessages.setAttribute("aria-live", "off");
+  dom.assistantMessages.replaceChildren();
+  if (!state.assistant.messages.length) {
+    appendAssistantMessage(
+      "assistant",
+      "Olá. Sou o assistente virtual da Surgery For Life. Posso ajudar a comparar modelos, entender tamanhos, personalização e cuidados com as peças.",
+    );
+  } else {
+    state.assistant.messages.forEach((message) =>
+      appendAssistantMessage(message.role, message.content),
+    );
+  }
+  window.requestAnimationFrame(() =>
+    dom.assistantMessages.setAttribute("aria-live", "polite"),
+  );
+}
+
+function renderAssistantSuggestions() {
+  dom.assistantSuggestions.replaceChildren();
+  state.assistant.suggestions.slice(0, 4).forEach((suggestion) => {
+    const button = element("button", {
+      type: "button",
+      text: suggestion,
+      attrs: { disabled: state.assistant.loading ? "" : undefined },
+    });
+    button.addEventListener("click", () => sendAssistantMessage(suggestion));
+    dom.assistantSuggestions.append(button);
+  });
+}
+
+function setAssistantBusy(busy) {
+  state.assistant.loading = busy;
+  dom.assistantPanel.classList.toggle("is-busy", busy);
+  dom.assistantInput.disabled = busy;
+  dom.assistantSend.disabled = busy;
+  dom.assistantPresence.replaceChildren(
+    element("i", { attrs: { "aria-hidden": "true" } }),
+    document.createTextNode(
+      busy ? " Preparando resposta" : " Inteligência da marca",
+    ),
+  );
+  dom.assistantStatus.textContent = busy
+    ? "O assistente está preparando a resposta."
+    : "";
+  renderAssistantSuggestions();
+}
+
+let assistantCloseTimer = 0;
+
+function openAssistant() {
+  window.clearTimeout(assistantCloseTimer);
+  state.assistant.open = true;
+  dom.assistantPanel.hidden = false;
+  dom.assistantLauncher.classList.add("is-panel-open");
+  dom.assistantLauncher.setAttribute("aria-expanded", "true");
+  dom.assistantLauncher.tabIndex = -1;
+  document.body.classList.add("assistant-is-open");
+  window.requestAnimationFrame(() => {
+    dom.assistantPanel.classList.add("is-open");
+    dom.assistantInput.focus({ preventScroll: true });
+  });
+}
+
+function closeAssistant(restoreFocus = true) {
+  if (!state.assistant.open) return;
+  state.assistant.open = false;
+  state.assistant.request?.abort();
+  state.assistant.request = null;
+  dom.assistantMessages.querySelector("[data-assistant-typing]")?.remove();
+  setAssistantBusy(false);
+  dom.assistantPanel.classList.remove("is-open");
+  dom.assistantLauncher.classList.remove("is-panel-open");
+  dom.assistantLauncher.setAttribute("aria-expanded", "false");
+  dom.assistantLauncher.tabIndex = 0;
+  document.body.classList.remove("assistant-is-open");
+  assistantCloseTimer = window.setTimeout(
+    () => {
+      if (!state.assistant.open) dom.assistantPanel.hidden = true;
+    },
+    reduceMotion ? 0 : 240,
+  );
+  if (restoreFocus)
+    window.requestAnimationFrame(() =>
+      dom.assistantLauncher.focus({ preventScroll: true }),
+    );
+}
+
+async function sendAssistantMessage(rawMessage, options = {}) {
+  if (state.assistant.loading) return;
+  const message = cleanMultiline(
+    rawMessage,
+    ASSISTANT_MAX_MESSAGE_LENGTH,
+  ).trim();
+  if (!message) {
+    dom.assistantInput.focus();
+    return;
+  }
+  if (hasLikelyPersonalData(message)) {
+    appendAssistantMessage(
+      "assistant",
+      "Para sua segurança, retire telefone, e-mail ou documentos da pergunta. Esses dados não são necessários para eu ajudar.",
+      { error: true },
+    );
+    dom.assistantStatus.textContent =
+      "A mensagem contém possível dado pessoal e não foi enviada.";
+    dom.assistantInput.focus();
+    return;
+  }
+
+  if (!options.retry) {
+    appendAssistantMessage("user", message);
+    addAssistantHistory("user", message);
+    dom.assistantInput.value = "";
+  }
+  setAssistantBusy(true);
+  appendAssistantMessage("assistant", "", { typing: true });
+
+  const controller = new AbortController();
+  state.assistant.request = controller;
+  let timedOut = false;
+  const timer = window.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, 15_000);
+
+  try {
+    const response = await fetch("/api/store/assistant", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      credentials: "same-origin",
+      signal: controller.signal,
+      body: JSON.stringify({
+        message,
+        conversationId: state.assistant.conversationId,
+      }),
+    });
+    let data = null;
+    try {
+      data = await safeJson(response);
+    } catch (parseError) {
+      if (response.ok) throw parseError;
+    }
+    if (!response.ok) throw assistantResponseError(response, data);
+    const reply = assistantText(
+      data?.reply || data?.answer || data?.message,
+      1200,
+    );
+    if (!reply) throw new Error("assistant-empty");
+    const suggestions = uniqueStrings(data?.suggestions, 4, 90).map(
+      (suggestion) => assistantText(suggestion, 90),
+    );
+    const productsSource = data?.products || data?.recommendedProducts;
+    const products = Array.isArray(productsSource)
+      ? productsSource.slice(0, 3)
+      : [];
+    dom.assistantMessages.querySelector("[data-assistant-typing]")?.remove();
+    appendAssistantMessage("assistant", reply, {
+      products,
+      action: data?.action,
+    });
+    addAssistantHistory("assistant", reply);
+    state.assistant.lastFailedMessage = "";
+    state.assistant.retryAfter = 0;
+    state.assistant.suggestions = suggestions.length
+      ? suggestions
+      : [...ASSISTANT_DEFAULT_SUGGESTIONS];
+  } catch (error) {
+    dom.assistantMessages.querySelector("[data-assistant-typing]")?.remove();
+    if (!state.assistant.open && error?.name === "AbortError") return;
+    const fallback = assistantFallback(message);
+    const rateLimited = error?.status === 429;
+    const retrySeconds = Math.max(1, Number(error?.retryAfter) || 30);
+    state.assistant.lastFailedMessage = message;
+    state.assistant.retryAfter = rateLimited
+      ? Date.now() + retrySeconds * 1000
+      : 0;
+    const explanation = rateLimited
+      ? `Recebi muitas perguntas em sequência. Aguarde cerca de ${retrySeconds} segundos para enviar outra.`
+      : timedOut
+        ? "A conexão demorou mais que o esperado, mas o chat já foi liberado para uma nova tentativa."
+        : "A resposta inteligente teve uma instabilidade e o chat já foi liberado para você tentar novamente.";
+    appendAssistantMessage("assistant", `${explanation}\n\n${fallback.reply}`, {
+      error: true,
+      recoverable: true,
+      products: fallback.products,
+      actions: [
+        {
+          type: "retry",
+          label: rateLimited ? "Tentar após a pausa" : "Tentar novamente",
+          message,
+        },
+        ...(fallback.action ? [fallback.action] : []),
+        { type: "whatsapp", label: "Falar com a equipe" },
+      ],
+    });
+    addAssistantHistory("assistant", `${explanation} ${fallback.reply}`);
+    dom.assistantStatus.textContent =
+      "A tentativa terminou. O campo de mensagem está disponível novamente.";
+  } finally {
+    window.clearTimeout(timer);
+    dom.assistantMessages.querySelector("[data-assistant-typing]")?.remove();
+    if (state.assistant.request === controller) {
+      state.assistant.request = null;
+      setAssistantBusy(false);
+      if (state.assistant.open)
+        dom.assistantInput.focus({ preventScroll: true });
+    }
+  }
+}
+
+function setupAssistant() {
+  const stored = readAssistantSession();
+  state.assistant.conversationId =
+    stored?.conversationId || createAssistantConversationId();
+  state.assistant.messages = stored?.messages || [];
+  renderAssistantHistory();
+  renderAssistantSuggestions();
+
+  dom.assistantLauncher.addEventListener("click", openAssistant);
+  dom.assistantClose.addEventListener("click", () => closeAssistant());
+  dom.assistantForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    sendAssistantMessage(dom.assistantInput.value);
+  });
+  dom.assistantInput.addEventListener("keydown", (event) => {
+    if (
+      event.key !== "Enter" ||
+      event.shiftKey ||
+      event.isComposing ||
+      state.assistant.loading
+    )
+      return;
+    event.preventDefault();
+    dom.assistantForm.requestSubmit();
+  });
+  dom.assistantPanel.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeAssistant();
+    }
+  });
+}
+
+function setupMotionLab() {
+  if (!dom.motionLab || !dom.motionToggle) return;
+  const stage = dom.motionLab.querySelector(".material-stage");
+  const connection = navigator.connection;
+  let userPaused = false;
+  let pageHidden = document.hidden;
+
+  const dataConstrained = () =>
+    Boolean(
+      connection?.saveData ||
+      /(^|-)2g$/i.test(String(connection?.effectiveType || "")),
+    );
+  const renderMotionState = () => {
+    const constrained = reduceMotion || dataConstrained();
+    const paused = constrained || userPaused || pageHidden;
+    document.documentElement.classList.toggle("motion-saver", constrained);
+    stage.classList.toggle("is-paused", paused);
+    dom.motionToggle.setAttribute("aria-pressed", String(paused));
+    dom.motionToggle.disabled = constrained;
+    dom.motionToggleLabel.textContent = constrained
+      ? "Movimento reduzido"
+      : userPaused
+        ? "Reproduzir animação"
+        : "Pausar animação";
+  };
+
+  dom.motionToggle.addEventListener("click", () => {
+    userPaused = !userPaused;
+    renderMotionState();
+  });
+  const handleMotionPreference = (event) => {
+    reduceMotion = event.matches;
+    if (reduceMotion)
+      document
+        .querySelectorAll(".reveal")
+        .forEach((node) => node.classList.add("is-visible"));
+    renderMotionState();
+  };
+  if (typeof motionPreference.addEventListener === "function")
+    motionPreference.addEventListener("change", handleMotionPreference);
+  else motionPreference.addListener?.(handleMotionPreference);
+  connection?.addEventListener?.("change", renderMotionState);
+  document.addEventListener("visibilitychange", () => {
+    pageHidden = document.hidden;
+    renderMotionState();
+  });
+
+  if ("IntersectionObserver" in window) {
+    const observer = new IntersectionObserver(
+      ([entry]) => stage.classList.toggle("is-in-view", entry.isIntersecting),
+      { rootMargin: "120px 0px", threshold: 0.08 },
+    );
+    observer.observe(stage);
+  } else {
+    stage.classList.add("is-in-view");
+  }
+  renderMotionState();
 }
 
 async function loadStoreConfig() {
@@ -1188,6 +1905,7 @@ function saveConfiguredItem(config) {
     name: config.product.name,
     category: config.product.category,
     image: config.product.image,
+    images: config.product.images,
     model: config.model,
     color: { name: config.color.name, value: config.color.value },
     size: config.size,
@@ -1316,12 +2034,14 @@ function normalizeCartItem(raw) {
   const unitPrice = safeNumber(raw.unitPrice, -1, 100_000);
   if (!productId || !name || !size || unitPrice < 0) return null;
   const category = raw.category === "scrub" ? "scrub" : "jaleco";
+  const images = normalizeProductImages(raw, category, raw.image);
   return {
     key: cleanText(raw.key, 80) || createId(),
     productId,
     name,
     category,
-    image: safeImage(raw.image, category),
+    image: images[0],
+    images,
     model: cleanText(raw.model, 40),
     color: {
       name: cleanText(raw.color?.name, 40) || "Cor selecionada",
@@ -1389,6 +2109,7 @@ function reconcileCartWithCatalog() {
       name: product.name,
       category: product.category,
       image: product.image,
+      images: product.images,
       unitPrice: product.price,
       variantId: cleanText(product.variantIds?.[item.size], 96),
       qty,
@@ -1427,6 +2148,147 @@ function persistCart() {
 
 function cartItemCount() {
   return state.cart.reduce((sum, item) => sum + item.qty, 0);
+}
+
+const PRODUCT_VIEWER_ZOOM_LABELS = ["100%", "125%", "150%", "200%"];
+
+function viewerCartItem() {
+  return state.cart.find((item) => item.key === state.viewer.itemKey) || null;
+}
+
+function setProductViewerZoom(nextIndex, announce = true) {
+  const index = Math.max(
+    0,
+    Math.min(PRODUCT_VIEWER_ZOOM_LABELS.length - 1, Number(nextIndex) || 0),
+  );
+  state.viewer.zoomIndex = index;
+  PRODUCT_VIEWER_ZOOM_LABELS.forEach((_label, level) =>
+    dom.productViewerStage.classList.toggle(
+      `zoom-level-${level}`,
+      level === index,
+    ),
+  );
+  const label = PRODUCT_VIEWER_ZOOM_LABELS[index];
+  dom.productViewerZoomReset.textContent = label;
+  dom.productViewerZoomOut.disabled = index === 0;
+  dom.productViewerZoomIn.disabled =
+    index === PRODUCT_VIEWER_ZOOM_LABELS.length - 1;
+  if (announce)
+    dom.productViewerStatus.textContent = `Ampliação ajustada para ${label}.`;
+}
+
+function renderProductViewer() {
+  const item = viewerCartItem();
+  if (!item) {
+    if (dom.productViewer.open) closeDialog(dom.productViewer);
+    return;
+  }
+  const product = state.catalog.find(
+    (candidate) => candidate.id === item.productId,
+  );
+  const images = normalizeProductImages(
+    { images: product?.images || item.images },
+    item.category,
+    product?.image || item.image,
+  );
+  state.viewer.images = images;
+  state.viewer.imageIndex = Math.min(
+    state.viewer.imageIndex,
+    Math.max(0, images.length - 1),
+  );
+  const currentImage = images[state.viewer.imageIndex];
+
+  dom.productViewerTitle.textContent = item.name;
+  dom.productViewerCode.textContent = `${item.category === "scrub" ? "SCRUB" : "JALECO"} / ${item.productId}`;
+  dom.productViewerDescription.textContent =
+    product?.description ||
+    "Observe os detalhes da peça e revise a configuração escolhida.";
+  dom.productViewerStage.dataset.fallback = item.productId;
+  dom.productViewerStage.classList.remove("has-image-error");
+  delete dom.productViewerImage.dataset.fallbackAttempted;
+  dom.productViewerImage.src = currentImage;
+  dom.productViewerImage.alt = `Vista ampliada de ${item.name} na cor ${item.color.name}`;
+
+  const specifications = [
+    ["Modelo", item.model || "Padrão"],
+    ["Cor", item.color.name],
+    ["Tamanho", item.size],
+    ["Quantidade", String(item.qty)],
+  ];
+  const personalization = [
+    item.personalization.name,
+    item.personalization.profession,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  if (personalization) specifications.push(["Personalização", personalization]);
+  dom.productViewerSpecs.replaceChildren();
+  specifications.forEach(([term, value]) => {
+    dom.productViewerSpecs.append(
+      element("div", {}, [
+        element("dt", { text: term }),
+        element("dd", { text: value }),
+      ]),
+    );
+  });
+  dom.productViewerPrice.textContent = money.format(item.unitPrice * item.qty);
+
+  dom.productViewerThumbnails.replaceChildren();
+  dom.productViewerThumbnails.hidden = images.length <= 1;
+  images.forEach((imageSource, index) => {
+    const thumbnail = element("button", {
+      className: "product-viewer-thumbnail",
+      type: "button",
+      attrs: {
+        "aria-label": `Mostrar imagem ${index + 1} de ${images.length}`,
+        "aria-current": index === state.viewer.imageIndex ? "true" : undefined,
+      },
+    });
+    thumbnail.append(
+      element("img", {
+        attrs: {
+          src: imageSource,
+          alt: "",
+          loading: "lazy",
+          decoding: "async",
+        },
+      }),
+    );
+    thumbnail.addEventListener("click", () => {
+      state.viewer.imageIndex = index;
+      state.viewer.zoomIndex = 0;
+      renderProductViewer();
+      dom.productViewerStatus.textContent = `Imagem ${index + 1} de ${images.length} selecionada.`;
+    });
+    dom.productViewerThumbnails.append(thumbnail);
+  });
+  setProductViewerZoom(state.viewer.zoomIndex, false);
+}
+
+function openProductViewer(item) {
+  if (!item) return;
+  state.viewer.itemKey = item.key;
+  state.viewer.imageIndex = 0;
+  state.viewer.zoomIndex = 0;
+  renderProductViewer();
+  openDialog(dom.productViewer, dom.productViewerTitle);
+}
+
+function editProductViewerItem() {
+  const item = viewerCartItem();
+  const product = item
+    ? state.catalog.find((candidate) => candidate.id === item.productId)
+    : null;
+  if (!item || !product) {
+    showToast("Este produto precisa ser atualizado antes da edição.");
+    return;
+  }
+  closeDialog(dom.productViewer, false);
+  closeDialog(dom.cartDialog, false);
+  window.setTimeout(
+    () => openConfigurator(product, item),
+    reduceMotion ? 0 : 160,
+  );
 }
 
 function renderCart() {
@@ -1512,14 +2374,33 @@ function createCartItem(item) {
   });
   applyColorTone(imageShell, item.color.value);
   const image = element("img", {
-    attrs: { src: item.image, alt: "", loading: "lazy" },
+    attrs: {
+      src: item.image,
+      alt: `${item.name} na cor ${item.color.name}`,
+      loading: "lazy",
+      decoding: "async",
+    },
   });
   image.addEventListener(
     "error",
     () => imageShell.classList.add("has-image-error"),
     { once: true },
   );
-  imageShell.append(image);
+  const zoom = element("button", {
+    className: "cart-item-zoom",
+    type: "button",
+    attrs: {
+      "aria-label": `Ampliar imagem de ${item.name}`,
+      title: "Ampliar produto",
+    },
+  });
+  zoom.append(
+    iconPath(
+      "m15.5 15.5 4 4m-2-9a7 7 0 1 1-14 0 7 7 0 0 1 14 0Zm-7-3v6m-3-3h6",
+    ),
+  );
+  zoom.addEventListener("click", () => openProductViewer(item));
+  imageShell.append(image, zoom);
 
   const body = element("div", { className: "cart-item-body" });
   body.append(element("h3", { text: item.name }));
@@ -2285,6 +3166,56 @@ dom.cartDialog.addEventListener("cancel", (event) => {
 });
 dom.cartCheckout.addEventListener("click", handleCheckout);
 
+dom.productViewerClose.addEventListener("click", () =>
+  closeDialog(dom.productViewer),
+);
+dom.productViewer.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closeDialog(dom.productViewer);
+});
+dom.productViewerZoomOut.addEventListener("click", () =>
+  setProductViewerZoom(state.viewer.zoomIndex - 1),
+);
+dom.productViewerZoomReset.addEventListener("click", () =>
+  setProductViewerZoom(0),
+);
+dom.productViewerZoomIn.addEventListener("click", () =>
+  setProductViewerZoom(state.viewer.zoomIndex + 1),
+);
+dom.productViewerEdit.addEventListener("click", editProductViewerItem);
+dom.productViewerImage.addEventListener("load", () => {
+  dom.productViewerStage.classList.remove("has-image-error");
+});
+dom.productViewerImage.addEventListener("error", () => {
+  const item = viewerCartItem();
+  const fallback = defaultProductImage(item?.category || "jaleco");
+  if (
+    dom.productViewerImage.getAttribute("src") !== fallback &&
+    !dom.productViewerImage.dataset.fallbackAttempted
+  ) {
+    dom.productViewerImage.dataset.fallbackAttempted = "true";
+    dom.productViewerImage.src = fallback;
+    return;
+  }
+  dom.productViewerStage.classList.add("has-image-error");
+  dom.productViewerImage.alt = "";
+  dom.productViewerStatus.textContent =
+    "A imagem desta peça não está disponível no momento.";
+});
+dom.productViewer.addEventListener("keydown", (event) => {
+  if (event.target instanceof HTMLInputElement) return;
+  if (["+", "="].includes(event.key)) {
+    event.preventDefault();
+    setProductViewerZoom(state.viewer.zoomIndex + 1);
+  } else if (event.key === "-") {
+    event.preventDefault();
+    setProductViewerZoom(state.viewer.zoomIndex - 1);
+  } else if (event.key === "0") {
+    event.preventDefault();
+    setProductViewerZoom(0);
+  }
+});
+
 dom.checkoutClose.addEventListener("click", () => {
   if (!state.checkout.submitting) closeDialog(dom.checkoutDialog);
 });
@@ -2319,12 +3250,16 @@ dom.googleLogin.addEventListener("click", (event) => {
     "O acesso com Google ainda não está configurado neste ambiente.";
 });
 
-[dom.configurator, dom.cartDialog, dom.checkoutDialog, dom.authDialog].forEach(
-  (dialog) => {
-    dialog.addEventListener("keydown", trapFocus);
-    dialog.addEventListener("close", updateBodyLock);
-  },
-);
+[
+  dom.configurator,
+  dom.cartDialog,
+  dom.productViewer,
+  dom.checkoutDialog,
+  dom.authDialog,
+].forEach((dialog) => {
+  dialog.addEventListener("keydown", trapFocus);
+  dialog.addEventListener("close", updateBodyLock);
+});
 
 dom.sizeGuideActions.forEach((button) =>
   button.addEventListener("click", () => openDialog(dom.sizeGuide)),
@@ -2404,6 +3339,8 @@ document.querySelectorAll("[data-current-year]").forEach((node) => {
 setupImageFallbacks();
 setupReveal();
 setupNavigationObserver();
+setupMotionLab();
+setupAssistant();
 renderCart();
 handleLoginQuery();
 refreshAuth();

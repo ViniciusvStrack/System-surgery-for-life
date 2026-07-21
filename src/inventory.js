@@ -177,6 +177,21 @@ export class InventoryService {
     };
   }
 
+  // Consulta usada por superfícies estritamente informativas. Não libera
+  // reservas, não inicializa seed e não grava o agregado.
+  readOnlyProducts() {
+    let data;
+    try {
+      data = normalizeAggregate(this.store.readStrict({ allowMissing: true, code: "INVENTORY_CORRUPTED" }));
+      if (data.products.length) this.#validate(data.products, data.movements);
+    } catch (error) {
+      if (!error.code) error.code = "INVENTORY_CORRUPTED";
+      if (!error.status) error.status = 503;
+      throw error;
+    }
+    return structuredClone(data.products);
+  }
+
   aggregate() {
     this.releaseExpiredReservations();
     return this.#readAggregate();

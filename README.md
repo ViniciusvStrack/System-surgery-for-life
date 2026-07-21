@@ -30,6 +30,7 @@ Em produção, defina `ENABLE_SIMULATOR=false` no `.env` se não quiser deixar o
 - Edite `.env` com nome da loja, frete e credenciais da Meta.
 - Estoque, pedidos, movimentações e idempotência ficam no agregado atômico `runtime/inventory.json`; sessões do bot ficam em `runtime/sessions.json`.
 - O contrato do checkout e do handoff assinado está em `docs/checkout-whatsapp.md`.
+- O assistente virtual privado, seus limites de conhecimento e o contrato da API estão em `docs/assistente-virtual.md`.
 
 ## Conectar ao WhatsApp Cloud API
 
