@@ -1617,6 +1617,5 @@
       aria-atomic="true"
       data-toast-region
     ></div>
-      <script src="/loja/premium-features.js"></script>
-</body>
+  </body>
 </html>

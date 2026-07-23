@@ -22,6 +22,23 @@ import { CustomerAuthService } from "./customer-auth.js";
 import { LocalCustomerAuthService } from "./local-customer-auth.js";
 import { CommerceService, hashPrincipal } from "./commerce.js";
 import { parseAssistantPayload, StoreAssistant } from "./store-assistant.js";
+import {
+  recommendSize,
+  generateEmbroideryPreview,
+  WaitlistService,
+  calculateKitDiscount,
+  buildKit,
+  generateSocialProof,
+  getAvailableCollectionDates,
+  estimateDelivery,
+  generateReorderQrData,
+  ReferralService,
+  generatePushPayload,
+  createReverseLabel,
+  getPlantaoMode,
+  generateCareQrData,
+} from "./premium-features.js";
+import { LowStockNotifier } from "./low-stock-notifier.js";
 
 await loadEnv();
 const config = validateConfig(getConfig());
@@ -113,6 +130,14 @@ const localCustomerAuth = new LocalCustomerAuthService({
   secureCookies: config.appEnv === "production",
 });
 const storeAssistant = new StoreAssistant({ catalog, commerce, config });
+
+const waitlistService = new WaitlistService(path.join(config.root, "runtime/waitlist.json"));
+const referralService = new ReferralService(path.join(config.root, "runtime/referrals.json"));
+const lowStockNotifier = new LowStockNotifier({
+  whatsappClient: whatsapp,
+  storeNumber: config.storeNumber,
+  inventory,
+});
 
 const publicFiles = {
   "/": ["loja/index.html", "text/html; charset=utf-8", "store"],
@@ -896,6 +921,130 @@ async function handleRequest(request, response) {
       return sendStoreError(response, error);
     }
   }
+
+  // ==================== PREMIUM FEATURES V2 - Surgery For Life ====================
+  if (request.method === "POST" && url.pathname === "/api/size-recommend") {
+    try {
+      const body = JSON.parse((await readBody(request, 8192)).toString("utf8"));
+      const result = recommendSize({
+        heightCm: body.heightCm || body.altura,
+        weightKg: body.weightKg || body.peso,
+        bodyType: body.bodyType || body.corpo || "medio",
+        preferencia: body.preferencia || body.preferenciaTamanho || "confortavel",
+      });
+      return sendJson(response, 200, result);
+    } catch (error) {
+      return sendJson(response, 400, { error: "Medidas inválidas", details: error.message });
+    }
+  }
+  if (request.method === "POST" && url.pathname === "/api/embroidery-preview") {
+    try {
+      const body = JSON.parse((await readBody(request, 8192)).toString("utf8"));
+      const result = generateEmbroideryPreview({
+        name: body.name,
+        crm: body.crm,
+        color: body.color || "#D6BE9D",
+        font: body.font || "serif",
+      });
+      return sendJson(response, 200, result);
+    } catch (error) {
+      return sendJson(response, 400, { error: "Dados bordado inválidos" });
+    }
+  }
+  if (request.method === "POST" && url.pathname === "/api/waitlist") {
+    try {
+      const body = JSON.parse((await readBody(request, 8192)).toString("utf8"));
+      const sku = String(body.sku||"").slice(0,100);
+      const customerName = String(body.customerName||body.nome||"").slice(0,80);
+      const whatsapp = String(body.whatsapp||"").replace(/\D/g,"");
+      if (!sku || !whatsapp) throw new Error("SKU e WhatsApp obrigatórios");
+      const result = waitlistService.add({ sku, productName: body.productName||sku, color: body.color, size: body.size, customerName, whatsapp, email: body.email });
+      const pending = waitlistService.getBySku(sku).length;
+      return sendJson(response, result.already?200:201, { ...result, position: pending, totalPending: pending });
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message || "Falha ao entrar na lista" });
+    }
+  }
+  if (request.method === "GET" && url.pathname === "/api/waitlist") {
+    const sku = url.searchParams.get("sku");
+    if (sku) {
+      return sendJson(response, 200, { sku, pending: waitlistService.getBySku(sku), count: waitlistService.getBySku(sku).length });
+    }
+    return sendJson(response, 200, waitlistService.stats());
+  }
+  if (request.method === "GET" && url.pathname === "/api/collection-dates") {
+    const dates = getAvailableCollectionDates({});
+    // Enrich with delivery estimate for Recife as example
+    const enriched = dates.map(d => ({ ...d, estimate: estimateDelivery(d.date, "50000000") }));
+    return sendJson(response, 200, enriched);
+  }
+  if (request.method === "GET" && url.pathname === "/api/social-proof") {
+    const product = url.searchParams.get("product") || "Scrub Noir";
+    return sendJson(response, 200, { message: generateSocialProof(product), product });
+  }
+  if (request.method === "POST" && url.pathname === "/api/kit-builder") {
+    try {
+      const body = JSON.parse((await readBody(request, 8192)).toString("utf8"));
+      const items = Array.isArray(body.items) ? body.items : [];
+      if (items.length < 1) throw new Error("Kit precisa de pelo menos 1 item");
+      const kit = buildKit(items);
+      return sendJson(response, 200, kit);
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
+  if (request.method === "GET" && url.pathname === "/api/qr/reorder") {
+    try {
+      const sku = url.searchParams.get("sku");
+      if (!sku) throw new Error("SKU obrigatório");
+      const data = generateReorderQrData({ sku, customerId: url.searchParams.get("customerId"), orderCode: url.searchParams.get("order") });
+      const qrDataUrl = await QRCode.toDataURL(data, { width: 240, margin: 1 });
+      return sendJson(response, 200, { sku, reorderUrl: data, qrDataUrl });
+    } catch (error) {
+      return sendJson(response, 400, { error: "Falha ao gerar QR" });
+    }
+  }
+  if (request.method === "POST" && url.pathname === "/api/referral") {
+    try {
+      const body = JSON.parse((await readBody(request, 8192)).toString("utf8"));
+      const result = referralService.createLink({ doctorName: body.doctorName, whatsapp: body.whatsapp, customCode: body.customCode });
+      if (result.error) return sendJson(response, 400, result);
+      return sendJson(response, 201, result);
+    } catch (error) {
+      return sendJson(response, 400, { error: "Falha ao criar link indicação" });
+    }
+  }
+  if (request.method === "GET" && url.pathname === "/api/referral") {
+    const code = url.searchParams.get("code");
+    return sendJson(response, 200, referralService.getStats(code));
+  }
+  if (request.method === "POST" && url.pathname === "/api/referral/sale") {
+    try {
+      const body = JSON.parse((await readBody(request, 8192)).toString("utf8"));
+      const tracked = referralService.trackSale(body.refCode, Number(body.orderValue)||0);
+      return sendJson(response, tracked?200:404, tracked?{ ok:true, referral: tracked }:{ error:"Ref não encontrado" });
+    } catch (error) {
+      return sendJson(response, 400, { error: "Falha ao rastrear venda" });
+    }
+  }
+  if (request.method === "POST" && url.pathname === "/api/reverse") {
+    try {
+      const body = JSON.parse((await readBody(request, 8192)).toString("utf8"));
+      const reverse = createReverseLabel({ originalOrder: body.originalOrder, reason: body.reason, sku: body.sku, quantity: body.quantity||1 });
+      return sendJson(response, 201, reverse);
+    } catch (error) {
+      return sendJson(response, 400, { error: "Falha ao criar devolução" });
+    }
+  }
+  if (request.method === "GET" && url.pathname === "/api/plantao-mode") {
+    return sendJson(response, 200, getPlantaoMode());
+  }
+  // ==================== FIM PREMIUM FEATURES ====================
+
+  if (
+    request.method === "POST" &&
+    url.pathname === "/api/chat" &&
+
   if (
     request.method === "POST" &&
     url.pathname === "/api/chat" &&
