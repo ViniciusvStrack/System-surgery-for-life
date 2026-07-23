@@ -1044,10 +1044,6 @@ async function handleRequest(request, response) {
   if (
     request.method === "POST" &&
     url.pathname === "/api/chat" &&
-
-  if (
-    request.method === "POST" &&
-    url.pathname === "/api/chat" &&
     config.simulatorEnabled
   ) {
     try {
