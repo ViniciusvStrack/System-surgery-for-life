@@ -308,6 +308,11 @@ export class CommerceService {
       for (const [sku, quantity] of requestedBySku) {
         const product = data.products.find((entry) => entry.sku === sku);
         product.qtd = Number(product.qtd) - quantity;
+        // ALERTA ESTOQUE BAIXO - Surgery For Life Divinópolis
+        const minStock = Number(product.min ?? product.minStock ?? 3);
+        if (Number(product.qtd) <= minStock) {
+          console.warn(`[LowStock] ALERTA: ${product.sku} - ${product.name || product.id} | Saldo ${product.qtd} <= mínimo ${minStock} | Local: Divinópolis - Camaragibe | Ação: Repor urgente!`);
+        }
         data.movements.push({
           id: crypto.randomUUID(),
           date: createdAt,

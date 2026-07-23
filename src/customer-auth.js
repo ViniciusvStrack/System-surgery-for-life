@@ -136,7 +136,7 @@ async function fetchJson(fetchImpl, url, options, { maxBytes, timeoutMs, errorCo
   if (typeof fetchImpl !== "function") throw new Error("Uma implementacao de fetch e obrigatoria.");
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
-  timer.unref?.();
+
   try {
     const response = await fetchImpl(url, { ...options, signal: controller.signal });
     const declaredLength = Number(response?.headers?.get?.("content-length") || 0);
