@@ -88,13 +88,22 @@ test("valida checkout, permite correção e evita pedido duplicado", async () =>
   await add(bot, user, "JAL-001", "M", 1); await bot.handle(user, "finalizar");
   assert.match((await bot.handle(user, "A")).messages[0], /nome completo/);
   await bot.handle(user, "Ana Silva");
-  assert.match((await bot.handle(user, "motoboy")).messages[0], /entrega.*retirada/);
-  await bot.handle(user, "entrega");
+  assert.match((await bot.handle(user, "motoboy")).messages[0], /endere/);
   assert.match((await bot.handle(user, "Rua 1")).messages[0], /incompleto/);
   await bot.handle(user, "Rua A, 10, Centro, São Paulo, 01000-000");
   assert.match((await bot.handle(user, "talvez")).messages[0], /confirmar/);
   await bot.handle(user, "confirmar"); await bot.handle(user, "confirmar");
   assert.equal(orders.read().length, 1);
+});
+
+test("entende quantidade por extenso e confirmaÃ§Ã£o natural", async () => {
+  const { bot, sessions } = setup();
+  const user = "natural";
+  await bot.handle(user, "adicionar JAL-001");
+  await bot.handle(user, "M");
+  await bot.handle(user, "duas");
+  assert.equal(sessions.read()[user].cart[0].qty, 2);
+  assert.match((await bot.handle(user, "ajuda")).messages[0], /Menu da loja/);
 });
 
 test("cancelamento preserva carrinho e status respeita o dono", async () => {

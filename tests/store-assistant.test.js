@@ -191,6 +191,20 @@ test("consulta somente produtos disponíveis e recomenda por critério objetivo"
   assert.match(plural.reply, /2 opções disponíveis/);
 });
 
+test("compara modelos usando somente dados do catálogo", () => {
+  const { assistant } = fixture();
+  const result = assistant.answer({
+    message: "Qual a diferença entre Jaleco Axis e Jaleco Nexo?",
+  });
+  assert.match(result.reply, /Comparei os modelos/);
+  assert.match(result.reply, /Jaleco Axis/);
+  assert.match(result.reply, /Jaleco Nexo/);
+  assert.deepEqual(
+    result.products.map((product) => product.id),
+    ["JAL-001", "JAL-002"],
+  );
+});
+
 test("responde tamanho com o saldo real da variante e nunca adivinha por peso", () => {
   const { assistant } = fixture();
   const available = assistant.answer({

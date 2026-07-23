@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { pipeline } from "node:stream";
+import { createGzip } from "node:zlib";
 import { Catalog } from "./catalog.js";
 import { StoreBot } from "./bot.js";
 import { getConfig, loadEnv, validateConfig } from "./config.js";
@@ -18,6 +19,7 @@ import { AuthService } from "./auth.js";
 import QRCode from "qrcode";
 import { SlidingWindowRateLimiter, WebhookDeduplicator } from "./security.js";
 import { CustomerAuthService } from "./customer-auth.js";
+import { LocalCustomerAuthService } from "./local-customer-auth.js";
 import { CommerceService, hashPrincipal } from "./commerce.js";
 import { parseAssistantPayload, StoreAssistant } from "./store-assistant.js";
 
@@ -104,6 +106,12 @@ const customerAuth = googleOauthConfigured
       secureCookies: config.appEnv === "production",
     })
   : null;
+const localCustomerAuth = new LocalCustomerAuthService({
+  customersFile: path.join(config.root, "runtime/local-customers.json"),
+  sessionsFile: path.join(config.root, "runtime/local-customer-sessions.json"),
+  sessionTtlMs: config.customerSessionTtlDays * 24 * 60 * 60_000,
+  secureCookies: config.appEnv === "production",
+});
 const storeAssistant = new StoreAssistant({ catalog, commerce, config });
 
 const publicFiles = {
@@ -187,6 +195,11 @@ function sendJson(response, status, value, headers = {}) {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
     "X-Frame-Options": "DENY",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    ...(config.appEnv === "production"
+      ? { "Strict-Transport-Security": "max-age=31536000; includeSubDomains" }
+      : {}),
     ...(status === 413 ? { Connection: "close" } : {}),
     ...headers,
   });
@@ -199,6 +212,12 @@ function redirect(response, status, location, headers = {}) {
     "Cache-Control": "no-store",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
+    "X-Frame-Options": "DENY",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    ...(config.appEnv === "production"
+      ? { "Strict-Transport-Security": "max-age=31536000; includeSubDomains" }
+      : {}),
     ...headers,
   });
   response.end();
@@ -214,14 +233,18 @@ function loginErrorLocation(returnTo = "/loja") {
   }
 }
 
-function sendStaticFile(response, absolutePath, type, cache) {
+function sendStaticFile(response, absolutePath, type, cache, request) {
   const stream = fs.createReadStream(absolutePath);
   let opened = false;
   stream.once("open", () => {
     opened = true;
+    const compressible = /^(?:text\/|application\/(?:javascript|json))/.test(type);
+    const acceptsGzip = /\bgzip\b/i.test(String(request.headers["accept-encoding"] || ""));
+    const useGzip = compressible && acceptsGzip;
     response.writeHead(200, {
       "Content-Type": type,
       "Cache-Control": cache,
+      ...(useGzip ? { "Content-Encoding": "gzip", Vary: "Accept-Encoding" } : {}),
       "X-Content-Type-Options": "nosniff",
       "Referrer-Policy": "strict-origin-when-cross-origin",
       "X-Frame-Options": "DENY",
@@ -230,7 +253,7 @@ function sendStaticFile(response, absolutePath, type, cache) {
       "Content-Security-Policy":
         "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
     });
-    pipeline(stream, response, (error) => {
+    pipeline(useGzip ? stream.pipe(createGzip({ level: 6 })) : stream, response, (error) => {
       if (error && !response.destroyed) response.destroy();
     });
   });
@@ -320,6 +343,11 @@ function orderPrincipal(request) {
       customerAuth.requireCsrf(request);
       return hashPrincipal("customer", current.user.sub);
     }
+  }
+  const local = localCustomerAuth.sessionFrom(request);
+  if (local) {
+    localCustomerAuth.requireCsrf(request);
+    return hashPrincipal("customer", local.user.id);
   }
   const context = requestContext(request);
   const anonymousFingerprint = `${context.ip}\n${String(context.userAgent).slice(0, 300)}`;
@@ -604,12 +632,17 @@ async function handleRequest(request, response) {
     const [file, type, scope] = publicFiles[url.pathname];
     if (scope === "simulator" && !config.simulatorEnabled)
       return sendJson(response, 404, { error: "Não encontrado" });
-    const cache = scope === "asset" ? "public, max-age=86400" : "no-store";
+    const cache = scope === "asset"
+      ? "public, max-age=86400"
+      : /\.(?:css|js)$/.test(file)
+        ? "public, max-age=300"
+        : "no-store";
     return sendStaticFile(
       response,
       path.join(config.root, "public", file),
       type,
       cache,
+      request,
     );
   }
   if (
@@ -683,6 +716,16 @@ async function handleRequest(request, response) {
       return redirect(response, 303, loginErrorLocation(returnTo), {
         "Set-Cookie": customerAuth.clearTransientCookie(),
       });
+    }
+  }
+  if (request.method === "POST" && ["/api/customer-auth/register", "/api/customer-auth/login"].includes(url.pathname)) {
+    try {
+      const body = JSON.parse((await readBody(request, 16_384)).toString("utf8"));
+      const registering = url.pathname.endsWith("register");
+      const result = registering ? localCustomerAuth.register(body) : localCustomerAuth.login(body);
+      return sendJson(response, registering ? 201 : 200, { user: result.user, csrf: result.csrf }, { "Set-Cookie": localCustomerAuth.cookie(result.token) });
+    } catch (error) {
+      return sendJson(response, error.status || 400, { error: error.message });
     }
   }
   if (request.method === "GET" && url.pathname === "/api/customer-auth/me") {
@@ -971,8 +1014,18 @@ async function handleRequest(request, response) {
     } catch (error) {
       console.error(error);
       if (!response.headersSent) {
-        response.writeHead(500);
-        response.end("Erro interno");
+        const status = error?.status || (error instanceof SyntaxError ? 400 : 500);
+        response.writeHead(status, {
+          "Content-Type": "text/plain; charset=utf-8",
+          ...(status === 413 ? { Connection: "close" } : {}),
+        });
+        response.end(
+          status === 413
+            ? "Payload excede o limite permitido."
+            : status < 500
+              ? "Solicitação inválida."
+              : "Erro interno",
+        );
       }
       return;
     }

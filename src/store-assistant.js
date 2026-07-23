@@ -917,6 +917,33 @@ export class StoreAssistant {
         },
       );
     }
+    if (
+      found.length >= 2 &&
+      hasAny(text, ["comparar", "compare", "diferenca", "qual a diferenca", "qual e melhor"])
+    ) {
+      const comparison = found.slice(0, 3).map((product) => {
+        const features = Array.isArray(product.features)
+          ? product.features.slice(0, 2).join(", ")
+          : "atributos cadastrados no catálogo";
+        const fits = Array.isArray(product.fits) && product.fits.length
+          ? ` Modelagem: ${product.fits.join(", ")}.`
+          : "";
+        return `${product.name}: ${money(safeNumber(product.price))}, ${features}.${fits}`;
+      });
+      return this.#result(
+        conversationId,
+        `Comparei os modelos disponíveis pelo catálogo atual:\n\n${comparison.join("\n") }\n\nA melhor escolha depende do caimento e dos recursos que você prefere. O estoque e o preço são revalidados antes da reserva.`,
+        {
+          suggestions: ["Ver tamanhos disponíveis", "Posso personalizar?", "Falar com a equipe"],
+          products: found.slice(0, 3),
+          action: {
+            type: "product",
+            productId: String(found[0].id),
+            label: `Ver ${found[0].name}`,
+          },
+        },
+      );
+    }
     const cheapest = hasAny(text, [
       "mais barato",
       "mais barata",

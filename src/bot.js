@@ -9,6 +9,33 @@ function hasAny(text, expressions) {
   return expressions.some((expression) => text.includes(expression));
 }
 
+const NUMBER_WORDS = new Map([
+  ["um", 1],
+  ["uma", 1],
+  ["dois", 2],
+  ["duas", 2],
+  ["tres", 3],
+  ["quatro", 4],
+  ["cinco", 5],
+  ["seis", 6],
+  ["sete", 7],
+  ["oito", 8],
+  ["nove", 9],
+  ["dez", 10],
+]);
+
+function requestedQuantity(text) {
+  const numeric = text.match(/\b\d+\b/);
+  if (numeric) return Number(numeric[0]);
+  return NUMBER_WORDS.get(normalize(text)) || null;
+}
+
+function matches(text, expressions) {
+  return expressions.some((expression) =>
+    text === expression || text.startsWith(`${expression} `),
+  );
+}
+
 function conversationalIntent(text) {
   // Intenções sociais aceitam frases completas, não apenas comandos exatos.
   if (hasAny(text, ["obrigado", "obrigada", "valeu", "agradeco", "agradeço"])) return "thanks";
@@ -102,12 +129,12 @@ export class StoreBot {
     }
 
     // Comandos globais funcionam em qualquer etapa da conversa.
-    if (["menu", "inicio", "oi", "ola", "bom dia", "boa tarde", "boa noite"].includes(n)) {
+    if (matches(n, ["menu", "inicio", "oi", "ola", "bom dia", "boa tarde", "boa noite", "ajuda", "opcoes", "voltar"])) {
       s.stage = "idle";
       return finish(`Olá, ${profileName}! Eu sou o assistente da *${this.config.storeName}*. 🛍️\n\n${MENU}`);
     }
     if (["cancelar", "cancelar pedido"].includes(n)) { s.stage = "idle"; s.pending = null; s.checkout = null; s.checkoutKey = null; return finish("Operação cancelada. Seu carrinho foi mantido.\n\n" + MENU); }
-    if (["atendente", "humano", "falar com atendente"].includes(n) || (n === "6" && s.stage === "idle")) {
+    if (hasAny(n, ["atendente", "humano", "falar com atendente", "falar com alguem", "falar com uma pessoa", "quero falar com a equipe"]) || (n === "6" && s.stage === "idle")) {
       s.stage = "human";
       return finish("Certo! Encaminhei sua conversa para nossa equipe. Um atendente responderá assim que possível.", { handoff: true });
     }
@@ -202,7 +229,7 @@ export class StoreBot {
       return finish(`Quantas unidades de *${product.name} — ${variant}* você deseja?`);
     }
     if (s.stage === "quantity") {
-      const qty = Number.parseInt(n, 10);
+      const qty = requestedQuantity(n);
       const product = this.catalog.byId(s.pending.productId);
       const same = s.cart.find((x) => x.productId === product.id && x.variant === s.pending.variant);
       const alreadyInCart = product.variantStock ? (same?.qty || 0) : s.cart.filter((x) => x.productId === product.id).reduce((sum, x) => sum + x.qty, 0);
@@ -227,9 +254,14 @@ export class StoreBot {
       return finish("Você prefere *entrega* ou *retirada*?");
     }
     if (s.stage === "checkout_delivery") {
-      if (!["entrega", "retirada"].includes(n)) return finish("Responda *entrega* ou *retirada*.");
-      s.checkout.delivery = n;
-      if (n === "entrega") { s.stage = "checkout_address"; return finish("Informe endereço completo, número, complemento, bairro, cidade e CEP."); }
+      const delivery = hasAny(n, ["entrega", "entregar", "delivery", "motoboy"])
+        ? "entrega"
+        : hasAny(n, ["retirada", "retirar", "buscar na loja", "vou buscar"])
+          ? "retirada"
+          : null;
+      if (!delivery) return finish("Você prefere *entrega* ou *retirada na loja*? Pode responder com uma dessas opções.");
+      s.checkout.delivery = delivery;
+      if (delivery === "entrega") { s.stage = "checkout_address"; return finish("Informe endereço completo, número, complemento, bairro, cidade e CEP."); }
       s.checkout.address = "Retirada na loja"; s.stage = "checkout_confirm";
       return finish(this.confirmation(s));
     }
@@ -239,8 +271,8 @@ export class StoreBot {
       return finish(this.confirmation(s));
     }
     if (s.stage === "checkout_confirm") {
-      if (["nao", "não", "corrigir"].includes(n)) { s.stage = "idle"; s.checkoutKey = null; return finish("Pedido não enviado. Seu carrinho foi mantido. Digite *finalizar* para tentar novamente."); }
-      if (!["sim", "confirmar", "confirmo"].includes(n)) return finish("Responda *confirmar* para enviar o pedido ou *corrigir* para voltar.");
+      if (hasAny(n, ["nao", "não", "corrigir", "voltar", "alterar"])) { s.stage = "idle"; s.checkoutKey = null; return finish("Tudo bem. O pedido não foi enviado e seu carrinho continua salvo. Quando quiser, digite *finalizar* novamente."); }
+      if (!hasAny(n, ["sim", "confirmar", "confirmo", "pode enviar", "pode confirmar", "ok", "okay"])) return finish("Está tudo certo? Responda *confirmar* ou *sim* para enviar, ou *corrigir* para alterar.");
       let order;
       try { order = this.createOrder(user, s); }
       catch (error) { s.stage = "idle"; return finish(`Não consegui reservar o estoque: ${error.message}\n\nSeu carrinho foi mantido. Escolha outra opção ou digite *atendente*.`); }

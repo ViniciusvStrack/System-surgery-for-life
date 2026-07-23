@@ -1622,6 +1622,74 @@ function renderColorOptions(config) {
   });
 }
 
+const VIRTUAL_FITTING_RANGES = [
+  { size: "PP", chest: 88, waist: 72, hip: 94 },
+  { size: "P", chest: 96, waist: 80, hip: 102 },
+  { size: "M", chest: 104, waist: 88, hip: 110 },
+  { size: "G", chest: 112, waist: 96, hip: 118 },
+  { size: "GG", chest: 122, waist: 106, hip: 128 },
+  { size: "XGG", chest: 134, waist: 118, hip: 140 },
+];
+
+function virtualFitRecommendation(values, product) {
+  const measurements = [values.chest, values.waist, values.hip].filter(
+    (value) => Number.isFinite(value) && value > 0,
+  );
+  if (measurements.length < 2) return null;
+  const largest = Math.max(...measurements);
+  const base = VIRTUAL_FITTING_RANGES.find(
+    (entry) => largest <= Math.max(entry.chest, entry.waist, entry.hip),
+  ) || VIRTUAL_FITTING_RANGES.at(-1);
+  const available = product.variants.filter((size) =>
+    sizeAvailable(product, size, state.config?.editKey || ""),
+  );
+  const baseIndex = VIRTUAL_FITTING_RANGES.findIndex((entry) => entry.size === base.size);
+  const size = available.includes(base.size)
+    ? base.size
+    : available.find((availableSize) => VIRTUAL_FITTING_RANGES.findIndex((entry) => entry.size === availableSize) >= baseIndex) || available.at(-1) || base.size;
+  return { size, confidence: size === base.size ? "high" : "medium" };
+}
+
+function renderVirtualFitting(config) {
+  const panel = element("section", { className: "virtual-fitting-panel", attrs: { "aria-labelledby": "virtual-fitting-title" } });
+  panel.append(
+    element("p", { className: "eyebrow", text: "SFL FIT / GUIA INTELIGENTE" }),
+    element("h3", { text: "Encontre o tamanho que acompanha seu corpo.", attrs: { id: "virtual-fitting-title" } }),
+    element("p", { className: "virtual-fitting-intro", text: "Informe pelo menos duas medidas em centímetros. O resultado é uma estimativa inicial; você continua livre para ajustar o tamanho." }),
+  );
+  const fields = element("div", { className: "virtual-fitting-fields" });
+  const inputs = {};
+  [["chest", "Busto / peito", "Parte mais larga"], ["waist", "Cintura", "Sem apertar"], ["hip", "Quadril", "Parte mais larga"], ["height", "Altura (opcional)", "Ajuda no caimento"]].forEach(([key, label, hint]) => {
+    const group = element("label", { className: "virtual-fitting-field" });
+    inputs[key] = element("input", { attrs: { type: "number", min: 40, max: 220, step: "0.5", inputmode: "decimal", placeholder: "cm", "aria-label": label } });
+    group.append(element("span", { text: label }), inputs[key], element("small", { text: hint }));
+    fields.append(group);
+  });
+  const result = element("div", { className: "virtual-fitting-result", attrs: { role: "status", "aria-live": "polite" } });
+  const submit = element("button", { className: "button button-primary", text: "Calcular meu tamanho", type: "button" });
+  submit.addEventListener("click", () => {
+    const values = Object.fromEntries(Object.entries(inputs).map(([key, input]) => [key, Number(input.value)]));
+    const recommendation = virtualFitRecommendation(values, config.product);
+    if (!recommendation) {
+      result.textContent = "Preencha pelo menos duas medidas para uma recomendação mais segura.";
+      return;
+    }
+    config.size = recommendation.size;
+    result.replaceChildren(
+      element("strong", { text: `Nossa sugestão: tamanho ${recommendation.size}` }),
+      element("span", { text: recommendation.confidence === "high" ? "Boa correspondência com as medidas informadas." : "Esta é a opção disponível mais próxima das suas medidas." }),
+      element("small", { text: "Confira o caimento da modelagem e ajuste manualmente se preferir mais folga ou uma silhueta mais próxima ao corpo." }),
+    );
+    dom.configOptions.querySelectorAll(".size-choice").forEach((button) => {
+      const selected = button.textContent === recommendation.size;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-checked", String(selected));
+    });
+  });
+  panel.append(fields, submit, result);
+  dom.configOptions.append(panel);
+}
+
 function renderSizeOptions(config) {
   const grid = element("div", {
     className: "size-grid",
@@ -1659,15 +1727,9 @@ function renderSizeOptions(config) {
     element("span", {
       text: "Os tamanhos seguem a grade informada para cada peça.",
     }),
-    element("button", { text: "Guia de medidas", type: "button" }),
+    element("button", { text: "Abrir provador virtual", type: "button" }),
   ]);
-  help
-    .querySelector("button")
-    .addEventListener("click", () =>
-      showToast(
-        "O guia detalhado de medidas será disponibilizado antes do lançamento.",
-      ),
-    );
+  help.querySelector("button").addEventListener("click", () => renderVirtualFitting(config));
   dom.configOptions.append(grid, help);
 }
 
