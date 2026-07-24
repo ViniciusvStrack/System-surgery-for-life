@@ -1,0 +1,16 @@
+{
+  "name": "Surgery For Life - Atelier",
+  "short_name": "SFL Atelier",
+  "description": "Gestão operacional Surgery For Life - Estoque Divinópolis Camaragibe",
+  "start_url": "/estoque",
+  "display": "standalone",
+  "background_color": "#101F39",
+  "theme_color": "#101F39",
+  "icons": [
+    {
+      "src": "/assets/brand/sfl-monogram-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
