@@ -1,0 +1,387 @@
+{
+  "package.json": {
+    "mtime": 1784568617.898458,
+    "ast_hash": "89e4324b1c5908c9e1464f2ebe089dbb",
+    "semantic_hash": "89e4324b1c5908c9e1464f2ebe089dbb"
+  },
+  "public/app.js": {
+    "mtime": 1784568617.899779,
+    "ast_hash": "81fd90da6c7c3230a8b6079948e7e808",
+    "semantic_hash": "81fd90da6c7c3230a8b6079948e7e808"
+  },
+  "public/estoque/api.js": {
+    "mtime": 1784577433.8222797,
+    "ast_hash": "46861ba007d08bccfaf36e178ca4565f",
+    "semantic_hash": "46861ba007d08bccfaf36e178ca4565f"
+  },
+  "public/estoque/app.js": {
+    "mtime": 1784579397.7154007,
+    "ast_hash": "a19918d69538e858a54b787c4467383b",
+    "semantic_hash": "a19918d69538e858a54b787c4467383b"
+  },
+  "public/loja/app.js": {
+    "mtime": 1784660863.6890895,
+    "ast_hash": "1306007ab0edcb6b50d9c2449e6c768d",
+    "semantic_hash": "1306007ab0edcb6b50d9c2449e6c768d"
+  },
+  "public/loja/premium-features.js": {
+    "mtime": 1784833018.3745914,
+    "ast_hash": "787ba18ffb38ca8f38791ea67a44c13b",
+    "semantic_hash": "787ba18ffb38ca8f38791ea67a44c13b"
+  },
+  "public/manifest.json": {
+    "mtime": 1784912119.0983565,
+    "ast_hash": "f3cfc61890bd38681df5050397645e19",
+    "semantic_hash": "f3cfc61890bd38681df5050397645e19"
+  },
+  "scripts/backup.js": {
+    "mtime": 1784568617.9093652,
+    "ast_hash": "5086f3307898b525d677f832bd3fac86",
+    "semantic_hash": "5086f3307898b525d677f832bd3fac86"
+  },
+  "scripts/demo.js": {
+    "mtime": 1784568617.9099197,
+    "ast_hash": "fd18698b96bf44141a35904551108b7e",
+    "semantic_hash": "fd18698b96bf44141a35904551108b7e"
+  },
+  "src/auth.js": {
+    "mtime": 1784659745.0187109,
+    "ast_hash": "b0de198e4d1afc7d558980c1a4759b76",
+    "semantic_hash": "b0de198e4d1afc7d558980c1a4759b76"
+  },
+  "src/bot.js": {
+    "mtime": 1784660309.9024467,
+    "ast_hash": "6daad6cba83b05387e33a964bb20cf45",
+    "semantic_hash": "6daad6cba83b05387e33a964bb20cf45"
+  },
+  "src/catalog.js": {
+    "mtime": 1784581985.0385327,
+    "ast_hash": "f7bb08d9a16203e1a563c04d630394b1",
+    "semantic_hash": "f7bb08d9a16203e1a563c04d630394b1"
+  },
+  "src/commerce.js": {
+    "mtime": 1784830396.86862,
+    "ast_hash": "8ae653f8bf36bb164d3add8039dcc6f0",
+    "semantic_hash": "8ae653f8bf36bb164d3add8039dcc6f0"
+  },
+  "src/config.js": {
+    "mtime": 1784578405.4013705,
+    "ast_hash": "fc6cac68c521969c782d6899d41497c8",
+    "semantic_hash": "fc6cac68c521969c782d6899d41497c8"
+  },
+  "src/customer-auth.js": {
+    "mtime": 1784830396.874359,
+    "ast_hash": "a7c6885e09c97e9e94cd2f7e1b073eec",
+    "semantic_hash": "a7c6885e09c97e9e94cd2f7e1b073eec"
+  },
+  "src/inventory.js": {
+    "mtime": 1784582015.2060244,
+    "ast_hash": "3c366575c2f799608b938b14969b8bd4",
+    "semantic_hash": "3c366575c2f799608b938b14969b8bd4"
+  },
+  "src/json-store.js": {
+    "mtime": 1784577238.850987,
+    "ast_hash": "38d2f53f98e2145fe198f2c520976eba",
+    "semantic_hash": "38d2f53f98e2145fe198f2c520976eba"
+  },
+  "src/local-customer-auth.js": {
+    "mtime": 1784662202.7088108,
+    "ast_hash": "a7dec3dada3d09a04a03335c42409a4a",
+    "semantic_hash": "a7dec3dada3d09a04a03335c42409a4a"
+  },
+  "src/low-stock-notifier.js": {
+    "mtime": 1784830396.8765254,
+    "ast_hash": "8fa8d5ac80a3d80e54c58222ff419617",
+    "semantic_hash": "8fa8d5ac80a3d80e54c58222ff419617"
+  },
+  "src/premium-features.js": {
+    "mtime": 1784833018.3775861,
+    "ast_hash": "d1db01619cea96632233758115c2e398",
+    "semantic_hash": "d1db01619cea96632233758115c2e398"
+  },
+  "src/security.js": {
+    "mtime": 1784568617.9176538,
+    "ast_hash": "7d387211cd2011a5418cd8f8d5570555",
+    "semantic_hash": "7d387211cd2011a5418cd8f8d5570555"
+  },
+  "src/server.js": {
+    "mtime": 1784836055.72167,
+    "ast_hash": "144617603d56a168ec10d1f14bd6fa27",
+    "semantic_hash": "144617603d56a168ec10d1f14bd6fa27"
+  },
+  "src/store-assistant.js": {
+    "mtime": 1784660341.4812796,
+    "ast_hash": "1ec85593b94931eacad0a514d3aae0b1",
+    "semantic_hash": "1ec85593b94931eacad0a514d3aae0b1"
+  },
+  "src/utils.js": {
+    "mtime": 1784659432.9401393,
+    "ast_hash": "e5a2346bca092a2e074a2db00a2cb83f",
+    "semantic_hash": "e5a2346bca092a2e074a2db00a2cb83f"
+  },
+  "src/whatsapp.js": {
+    "mtime": 1784568617.9207067,
+    "ast_hash": "c9ccb294b1f2700ae3fe3796552e1585",
+    "semantic_hash": "c9ccb294b1f2700ae3fe3796552e1585"
+  },
+  "tests/auth.test.js": {
+    "mtime": 1784568617.9224236,
+    "ast_hash": "1176f8fa8bcea916baf4e85bc8d62734",
+    "semantic_hash": "1176f8fa8bcea916baf4e85bc8d62734"
+  },
+  "tests/bot-commerce.test.js": {
+    "mtime": 1784578203.9375553,
+    "ast_hash": "3182733a9fb3cbd2081a1c1fdb4911c4",
+    "semantic_hash": "3182733a9fb3cbd2081a1c1fdb4911c4"
+  },
+  "tests/bot-edge.test.js": {
+    "mtime": 1784660287.4885583,
+    "ast_hash": "533fd4a43692c80fcd5d9611213ecafa",
+    "semantic_hash": "533fd4a43692c80fcd5d9611213ecafa"
+  },
+  "tests/bot.test.js": {
+    "mtime": 1784570605.9248102,
+    "ast_hash": "a5635b31359faff20c2a62d519b93d4a",
+    "semantic_hash": "a5635b31359faff20c2a62d519b93d4a"
+  },
+  "tests/catalog.test.js": {
+    "mtime": 1784570556.7780397,
+    "ast_hash": "c8bc00cbf95df87f41c76aa711121909",
+    "semantic_hash": "c8bc00cbf95df87f41c76aa711121909"
+  },
+  "tests/commerce.test.js": {
+    "mtime": 1784578705.8407097,
+    "ast_hash": "d7f04df85db7b17a6866fbb7b07eff73",
+    "semantic_hash": "d7f04df85db7b17a6866fbb7b07eff73"
+  },
+  "tests/customer-auth.test.js": {
+    "mtime": 1784578426.4691947,
+    "ast_hash": "695da00ac9201c8534c13a207653d44f",
+    "semantic_hash": "695da00ac9201c8534c13a207653d44f"
+  },
+  "tests/fuzz.test.js": {
+    "mtime": 1784570566.4785378,
+    "ast_hash": "4a246511257bbb0b7ee96ff9a90ecc14",
+    "semantic_hash": "4a246511257bbb0b7ee96ff9a90ecc14"
+  },
+  "tests/inventory-integration.test.js": {
+    "mtime": 1784568617.9277134,
+    "ast_hash": "88152098bc4885499c55b85993cd7428",
+    "semantic_hash": "88152098bc4885499c55b85993cd7428"
+  },
+  "tests/premium-features.test.js": {
+    "mtime": 1784833018.39012,
+    "ast_hash": "79fe846cd0e36989036065e1c273fc3f",
+    "semantic_hash": "79fe846cd0e36989036065e1c273fc3f"
+  },
+  "tests/security-hardening.test.js": {
+    "mtime": 1784578425.2772582,
+    "ast_hash": "8a342275a06abd8e0d7497a98c292495",
+    "semantic_hash": "8a342275a06abd8e0d7497a98c292495"
+  },
+  "tests/storage-utils.test.js": {
+    "mtime": 1784571948.885376,
+    "ast_hash": "65b81ae8cbcf6f977550a22f32b592c2",
+    "semantic_hash": "65b81ae8cbcf6f977550a22f32b592c2"
+  },
+  "tests/store-assistant.test.js": {
+    "mtime": 1784660373.465915,
+    "ast_hash": "7841c9109f7668773f171dd4cd2e1eed",
+    "semantic_hash": "7841c9109f7668773f171dd4cd2e1eed"
+  },
+  "tests/whatsapp.test.js": {
+    "mtime": 1784568617.9289582,
+    "ast_hash": "78e35ed108ce2d348c901b5ead117a0f",
+    "semantic_hash": "78e35ed108ce2d348c901b5ead117a0f"
+  },
+  "data/catalog.json": {
+    "mtime": 1784583518.7372398,
+    "ast_hash": "623fabd9996a8c12ede2ef0b8e8820bf",
+    "semantic_hash": "623fabd9996a8c12ede2ef0b8e8820bf"
+  },
+  "data/faqs.json": {
+    "mtime": 1784568617.8914678,
+    "ast_hash": "d26d809b59f8b44fac102b07eaf885c1",
+    "semantic_hash": "d26d809b59f8b44fac102b07eaf885c1"
+  },
+  "data/inventory.seed.json": {
+    "mtime": 1784576867.6516073,
+    "ast_hash": "6e814382156c44fdb4657f32a541bbd5",
+    "semantic_hash": "6e814382156c44fdb4657f32a541bbd5"
+  },
+  ".github/workflows/ci.yml": {
+    "mtime": 1784568617.8842995,
+    "ast_hash": "93c68115372006212a2c57b1361e46c1",
+    "semantic_hash": "93c68115372006212a2c57b1361e46c1"
+  },
+  "CONTRIBUTING.md": {
+    "mtime": 1784568617.8854585,
+    "ast_hash": "0b851781e652ae1497338b2a5f6cc28c",
+    "semantic_hash": "0b851781e652ae1497338b2a5f6cc28c"
+  },
+  "README.md": {
+    "mtime": 1784830396.826764,
+    "ast_hash": "04ea2fcbf7a88160d454d76ad78eea9a",
+    "semantic_hash": "04ea2fcbf7a88160d454d76ad78eea9a"
+  },
+  "SECURITY.md": {
+    "mtime": 1784568617.889164,
+    "ast_hash": "ff44e189a300bcf12df75211917b2f9f",
+    "semantic_hash": "ff44e189a300bcf12df75211917b2f9f"
+  },
+  "docker-compose.yml": {
+    "mtime": 1784573584.521599,
+    "ast_hash": "c1d3a1c93582fdd7c14e0fb8de7c5409",
+    "semantic_hash": "c1d3a1c93582fdd7c14e0fb8de7c5409"
+  },
+  "docs/assistente-virtual.md": {
+    "mtime": 1784582876.306132,
+    "ast_hash": "80384b5d16299957e18806f707680fc7",
+    "semantic_hash": "80384b5d16299957e18806f707680fc7"
+  },
+  "docs/autenticacao.md": {
+    "mtime": 1784573553.31944,
+    "ast_hash": "f363073ddece12d8da239028ccdfcc65",
+    "semantic_hash": "f363073ddece12d8da239028ccdfcc65"
+  },
+  "docs/checklist-apresentacao-cliente.md": {
+    "mtime": 1784912119.0953584,
+    "ast_hash": "d8bf5998681174a3b06f8b13bdc44ad0",
+    "semantic_hash": "d8bf5998681174a3b06f8b13bdc44ad0"
+  },
+  "docs/checkout-whatsapp.md": {
+    "mtime": 1784578588.3694873,
+    "ast_hash": "d55a441bf642c778c2aab51f9ac48d78",
+    "semantic_hash": "d55a441bf642c778c2aab51f9ac48d78"
+  },
+  "docs/custos-operacao.md": {
+    "mtime": 1784830396.8393497,
+    "ast_hash": "51e16d473e6d161ae9cbf0149120a7c5",
+    "semantic_hash": "51e16d473e6d161ae9cbf0149120a7c5"
+  },
+  "docs/deploy-profissional.md": {
+    "mtime": 1784830396.8458734,
+    "ast_hash": "a6a7629e571b1364cd10f30df208d5b2",
+    "semantic_hash": "a6a7629e571b1364cd10f30df208d5b2"
+  },
+  "docs/implantacao-producao.md": {
+    "mtime": 1784578745.699756,
+    "ast_hash": "0c5218065287cba5845a51cfba30e084",
+    "semantic_hash": "0c5218065287cba5845a51cfba30e084"
+  },
+  "docs/integracao-whatsapp.md": {
+    "mtime": 1784579201.3946574,
+    "ast_hash": "ea00159ab98a97dded6ad9549661f159",
+    "semantic_hash": "ea00159ab98a97dded6ad9549661f159"
+  },
+  "docs/login-google.md": {
+    "mtime": 1784578949.5559702,
+    "ast_hash": "5e9e48e6ee05b1302af49712885bd8d1",
+    "semantic_hash": "5e9e48e6ee05b1302af49712885bd8d1"
+  },
+  "docs/logistica-camaragibe.md": {
+    "mtime": 1784830396.848896,
+    "ast_hash": "6cfadb8624649b9646e75d05da559981",
+    "semantic_hash": "6cfadb8624649b9646e75d05da559981"
+  },
+  "docs/paletas.md": {
+    "mtime": 1784830396.8528988,
+    "ast_hash": "fd825117092426b5cc35d2438c311e49",
+    "semantic_hash": "fd825117092426b5cc35d2438c311e49"
+  },
+  "docs/rotina-operacao-junior.md": {
+    "mtime": 1784912119.0973582,
+    "ast_hash": "e8f92656f18db566411df6e3402e09b7",
+    "semantic_hash": "e8f92656f18db566411df6e3402e09b7"
+  },
+  "docs/variaveis-ambiente.md": {
+    "mtime": 1784578446.436732,
+    "ast_hash": "72b2cfe27c4762364345ecabee29a22c",
+    "semantic_hash": "72b2cfe27c4762364345ecabee29a22c"
+  },
+  "legacy/estoque-v2-standalone.html": {
+    "mtime": 1784568617.897285,
+    "ast_hash": "dda443c7cfa151b5f0d62b2b45786ee2",
+    "semantic_hash": "dda443c7cfa151b5f0d62b2b45786ee2"
+  },
+  "public/estoque/index.html": {
+    "mtime": 1784577637.2573864,
+    "ast_hash": "58d7dcd209803fa68ffda450746f85f0",
+    "semantic_hash": "58d7dcd209803fa68ffda450746f85f0"
+  },
+  "public/index.html": {
+    "mtime": 1784568617.9058642,
+    "ast_hash": "6dd669c5038cf5cc7c073dfcbef240a8",
+    "semantic_hash": "6dd669c5038cf5cc7c073dfcbef240a8"
+  },
+  "public/loja/index.html": {
+    "mtime": 1784833018.367591,
+    "ast_hash": "db1f0a1ca92c1ec7a6da5206f7f95d26",
+    "semantic_hash": "db1f0a1ca92c1ec7a6da5206f7f95d26"
+  },
+  "public/loja/privacidade.html": {
+    "mtime": 1784578949.2529156,
+    "ast_hash": "d3d8e62bc0901dda6044f9992b80037e",
+    "semantic_hash": "d3d8e62bc0901dda6044f9992b80037e"
+  },
+  "public/loja/termos.html": {
+    "mtime": 1784579194.3596387,
+    "ast_hash": "47375e26b0c4f623341cbf1cc73e10fc",
+    "semantic_hash": "47375e26b0c4f623341cbf1cc73e10fc"
+  },
+  "public/assets/brand/sfl-logo-horizontal.png": {
+    "mtime": 1784576761.817535,
+    "ast_hash": "2131a5e2b00c3154b87897808505e404",
+    "semantic_hash": "2131a5e2b00c3154b87897808505e404"
+  },
+  "public/assets/brand/sfl-logo-monogram.png": {
+    "mtime": 1784576762.8521872,
+    "ast_hash": "00553df2794d286d4acd099b1bda8802",
+    "semantic_hash": "00553df2794d286d4acd099b1bda8802"
+  },
+  "public/assets/brand/sfl-logo-stacked.png": {
+    "mtime": 1784576760.958751,
+    "ast_hash": "d390f38bfc6a5eb8d0b4ac56ab5bf918",
+    "semantic_hash": "d390f38bfc6a5eb8d0b4ac56ab5bf918"
+  },
+  "public/assets/brand/sfl-monogram-512.png": {
+    "mtime": 1784576762.8712754,
+    "ast_hash": "0514873aca7455b7a3b47348dad4ca26",
+    "semantic_hash": "0514873aca7455b7a3b47348dad4ca26"
+  },
+  "public/assets/sfl-coat-rear.jpg": {
+    "mtime": 1784583473.8583388,
+    "ast_hash": "ff40cb7eb47dc3968f740210ac44e0d8",
+    "semantic_hash": "ff40cb7eb47dc3968f740210ac44e0d8"
+  },
+  "public/assets/sfl-coat.jpg": {
+    "mtime": 1784573308.9345858,
+    "ast_hash": "0b8bb12f3079c1ec666ad206a1bf8391",
+    "semantic_hash": "0b8bb12f3079c1ec666ad206a1bf8391"
+  },
+  "public/assets/sfl-fabric-white.jpg": {
+    "mtime": 1784583474.8650894,
+    "ast_hash": "5313f726a379fd88870e4d5499677a93",
+    "semantic_hash": "5313f726a379fd88870e4d5499677a93"
+  },
+  "public/assets/sfl-fabric.jpg": {
+    "mtime": 1784573308.8760693,
+    "ast_hash": "0cc82d317c98a9934863c2a41b1d915e",
+    "semantic_hash": "0cc82d317c98a9934863c2a41b1d915e"
+  },
+  "public/assets/sfl-hero.jpg": {
+    "mtime": 1784573308.7677097,
+    "ast_hash": "955eb6c4ccc3549009bfcc26899c878d",
+    "semantic_hash": "955eb6c4ccc3549009bfcc26899c878d"
+  },
+  "public/assets/sfl-scrub-angle.jpg": {
+    "mtime": 1784583474.3708086,
+    "ast_hash": "bce1755a1ab8f8d0f753cd0b537f26ec",
+    "semantic_hash": "bce1755a1ab8f8d0f753cd0b537f26ec"
+  },
+  "public/assets/sfl-scrub.jpg": {
+    "mtime": 1784573309.0167487,
+    "ast_hash": "a8eafa5da5d11f9f2c2a9d89f1e5eea5",
+    "semantic_hash": "a8eafa5da5d11f9f2c2a9d89f1e5eea5"
+  }
+}
