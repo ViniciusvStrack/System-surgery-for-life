@@ -754,12 +754,19 @@ async function handleRequest(request, response) {
     }
   }
   if (request.method === "GET" && url.pathname === "/api/customer-auth/me") {
-    if (!customerAuth)
-      return sendJson(response, 503, {
-        error: "Acesso com Google temporariamente indisponível.",
-      });
+    const current = customerAuth?.sessionFrom(request) ?? localCustomerAuth.sessionFrom(request);
+    if (!current) {
+      if (customerAuth) {
+        return sendJson(response, 401, { error: "Autenticação necessária." });
+      }
+      return sendJson(response, 401, { error: "Autenticação necessária." });
+    }
     try {
-      return sendJson(response, 200, customerAuth.me(request));
+      return sendJson(
+        response,
+        200,
+        customerAuth ? customerAuth.me(request) : localCustomerAuth.me(request),
+      );
     } catch (error) {
       return sendJson(response, error.status || 401, {
         error: "Autenticação necessária.",
@@ -770,12 +777,19 @@ async function handleRequest(request, response) {
     request.method === "POST" &&
     url.pathname === "/api/customer-auth/logout"
   ) {
-    if (!customerAuth)
-      return sendJson(response, 503, {
-        error: "Acesso com Google temporariamente indisponível.",
-      });
     try {
-      const result = customerAuth.logout(request);
+      const current = customerAuth?.sessionFrom(request) ?? localCustomerAuth.sessionFrom(request);
+      if (!current) {
+        if (customerAuth) {
+          return sendJson(response, 401, {
+            error: "Autenticação necessária.",
+          });
+        }
+        return sendJson(response, 401, {
+          error: "Autenticação necessária.",
+        });
+      }
+      const result = customerAuth ? customerAuth.logout(request) : localCustomerAuth.logout(request);
       return sendJson(
         response,
         200,

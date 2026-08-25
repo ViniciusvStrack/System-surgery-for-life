@@ -16,7 +16,7 @@ export async function loadEnv() {
 }
 
 export function getConfig() {
-  const appEnv = String(process.env.APP_ENV || process.env.NODE_ENV || "").trim();
+  const appEnv = String(process.env.APP_ENV || process.env.NODE_ENV || "development").trim() || "development";
   return {
     root,
     host: String(process.env.HOST || (appEnv === "production" ? "0.0.0.0" : "127.0.0.1")).trim(),

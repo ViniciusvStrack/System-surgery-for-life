@@ -11,6 +11,7 @@ import {
   readCookie,
   verifyGoogleIdToken,
 } from "../src/customer-auth.js";
+import { LocalCustomerAuthService } from "../src/local-customer-auth.js";
 import { validateConfig } from "../src/config.js";
 
 const NOW = 1_800_000_000_000;
@@ -234,6 +235,33 @@ test("cookies de producao usam Secure e retorno nunca aceita open redirect", () 
   }
   assert.equal(readCookie("a=1; session=abc; b=2", "session"), "abc");
   assert.equal(readCookie("session=abc; session=def", "session"), null);
+});
+
+test("sessao local do cliente usa o mesmo contrato de perfil e logout do OAuth", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "sfl-local-customer-auth-"));
+  const auth = new LocalCustomerAuthService({
+    customersFile: path.join(root, "customers.json"),
+    sessionsFile: path.join(root, "sessions.json"),
+    secureCookies: false,
+    sessionTtlMs: 30 * 24 * 60 * 60 * 1000,
+  });
+
+  const created = auth.register({
+    name: "Cliente Local",
+    email: "cliente@local.dev",
+    password: "senhaSegura123",
+  });
+
+  assert.deepEqual(created.user, { id: created.user.id, name: "Cliente Local", email: "cliente@local.dev" });
+  const cookie = auth.cookie(created.token);
+  assert.deepEqual(auth.me({ headers: { cookie } }), {
+    user: { name: "Cliente Local", email: "cliente@local.dev" },
+    csrf: created.csrf,
+  });
+
+  const loggedOut = auth.logout({ headers: { cookie, "x-csrf-token": created.csrf } });
+  assert.match(loggedOut.cookie, /Max-Age=0/);
+  assert.throws(() => auth.me({ headers: { cookie } }), (error) => error.status === 401);
 });
 
 test("configuracao OAuth e TTL sao validados e OAuth pode ficar desativado com guest checkout", () => {

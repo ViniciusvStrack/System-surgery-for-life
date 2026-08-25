@@ -42,6 +42,11 @@ export class LocalCustomerAuthService {
     return user ? { user, session } : null;
   }
   publicUser(user) { return { id: user.id, name: user.name, email: user.email }; }
+  me(request) {
+    const current = this.sessionFrom(request);
+    if (!current) throw Object.assign(new Error("Autenticação necessária."), { status: 401 });
+    return { user: { name: current.user.name, email: current.user.email }, csrf: current.session.csrf };
+  }
   createSession(user) {
     const token = crypto.randomBytes(32).toString("base64url");
     const session = { tokenHash: hash(token), customerId: user.id, csrf: crypto.randomBytes(24).toString("base64url"), expiresAt: now() + this.sessionTtlMs };
